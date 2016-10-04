@@ -1,0 +1,15 @@
+<package>
+    <description brief="waypoint navigation library">
+        This library implements a behaviour that provides control commands from
+        a position and a set of waypoints. Waypoints are taken one by one in
+        order, with a tolerance that specifies when the waypoint should be
+        considered as visited.
+    </description>
+    <author>Janosch Machowinski/janosch.machowinski@dfki.de</author>
+    <copyright>
+        DFKI/robotik@dfki.de
+    </copyright>
+    <license>LGPL v2 or later</license>
+
+    <depend package="base/types" />
+</package>
