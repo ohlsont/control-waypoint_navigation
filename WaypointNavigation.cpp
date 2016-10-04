@@ -247,47 +247,58 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
   trajectory.clear();
   trajectory = t;
 
+  // Add current pose at the begining
+  trajectory.insert( trajectory.begin(), new base::Waypoint(curPose.position,curPose.getYaw(),0,0));
+
   //
   // currentWaypoint = trajectory.begin();
   currentSegment = 0;
 
   if(!trajectory.empty()) {
-    setTargetPose( *(trajectory.at(currentSegment)));
+    setTargetPose( *(trajectory.at(currentSegment))); // May become unused, lookahead point instead
     distanceToNext = new std::vector<double>(trajectory.size()-1);
     base::Vector3d wp;
     for (size_t i = 0; i < distanceToNext->size(); i++) {
       wp  = trajectory.at(i+1)->position; // w2 - w1
       wp -= trajectory.at(i)->position;
+      wp(3) = 0;
       distanceToNext->at(i) = wp.dot(wp);
       distanceToNext->at(i) = sqrt(distanceToNext->at(i));
     }
+    currentSegment = 0;
+    setSegmentWaypoint(w1, currentSegment);
+    setSegmentWaypoint(w2, currentSegment+1); // TODO can exceed
   } else {
     distanceToNext = new std::vector<double>();
   }
 }
-bool  WaypointNavigation::update(){
+
+bool  WaypointNavigation::update(base::commands::Motion2D& mc){
   // 1) Update the current SEGMENT                            //TODO check whether is it the last
-  setSegmentWaypoints(currentSegment);
-
-
-  // Select the segment such that robot is not withint reach of the 2nd Waypoint
-  while ( (w2-xr).squaredNorm() <= corridor && currentSegment < trajectory.size()-2 ){
+  // Select the segment such that robot is not withint immediate reach of the 2nd Waypoint
+  while ( (w2-xr).squaredNorm() <= corridorSq && currentSegment < trajectory.size()-2 ){
       currentSegment++;
-      setSegmentWaypoints(currentSegment);
+      setSegmentWaypoint(w1, currentSegment);
+      setSegmentWaypoint(w2, currentSegment+1);
   }
 
-  // 2) Get intersection point with the Path
-  base::Vector2d xi = getClosestPointOnPath(xr)
+  // 2) Get intersection point with the Path (should also return distance from the segment)
+  base::Vector2d xi = getClosestPointOnPath();
+
+  // 3) Get look ahead point
+  // 4) Get motion command to the lookahead point
+  return true;
 }
 
-bool WaypointNavigation::setSegmentWaypoint(*base::Vector2d waypoint, int indexSegment){
-  if (indexSegment > trajectory.size()-1 || indexSegment<0)
-    return false;
-  w1 << trajectory.at(startOfSegment)->position(1),
-        trajectory.at(startOfSegment)->position(2));
-  w2 << trajectory.at(startOfSegment+1)->position(1),
-        trajectory.at(startOfSegment+1)->position(2));
+base::Vector2d WaypointNavigation::getClosestPointOnPath(){
+  return base::Vector2d::Zero();
+}
 
+bool WaypointNavigation::setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment){
+  if (indexSegment > ((int)trajectory.size()-1) || indexSegment<0)
+    return false;
+  waypoint << trajectory.at(indexSegment)->position(1),
+              trajectory.at(indexSegment)->position(2);
   return true;
 }
 

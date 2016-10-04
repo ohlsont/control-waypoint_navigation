@@ -4,6 +4,7 @@
 #include <vector>
 #include <base/samples/rigid_body_state.h>
 #include <base/waypoint.h>
+#include <base/commands/Motion2D.hpp>
 
 enum NavigationState{
       DRIVING,
@@ -75,7 +76,7 @@ class WaypointNavigation
 
     const base::Waypoint* getLookaheadPoint();
 
-    bool update();
+    bool update(base::commands::Motion2D& mc);
 
   private:
   	/*
@@ -106,11 +107,12 @@ class WaypointNavigation
   	std::vector<base::Waypoint *>::iterator currentWaypoint;
     base::Waypoint lookaheadPoint;
     size_t currentSegment;
-    double corridor;
+    double corridorSq; // Allowed Distance perpendicular to path segment
     base::Vector2d w1, w2, xr;
 
-    bool setSegmentWaypoint(*base::Vector2d waypoint, int indexSegment);
-    base::Vector2d getClosestPointOnPath(base::Vector2d);
+    bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
+    base::Vector2d getClosestPointOnPath();
+
 };
 
 #endif
