@@ -3,7 +3,7 @@
 
 WaypointNavigation::WaypointNavigation()
 {
-  mNavigationState = STOPPED;
+  mNavigationState = TARGET_REACHED;
   stopAndTurnAngle = 30.0 / 180.0 * M_PI;
   minTurnRadius    = 0.6; // (in meters)
   tvP = 1.0;
@@ -189,7 +189,7 @@ void WaypointNavigation::getAlignmentCommand(double &tv, double &rv){
   tv = 0;
   if ( fabs(angleToTarget) < maxDisalignment ){
     rv = 0 ;
-    setNavigationState(STOPPED);
+    setNavigationState(TARGET_REACHED);
   } else {
     rv =  angleToTarget > 0 ? 0.05 : -0.05; // TODO speed from config
   }
@@ -201,7 +201,7 @@ bool WaypointNavigation::testSetNextWaypoint()
   if(trajectory.empty())
   {
     std::cout << "Trajectory is empty" << std::endl;
-    setNavigationState(STOPPED);
+    setNavigationState(TARGET_REACHED);
     return newWaypoint;
   }
 

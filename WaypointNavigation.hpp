@@ -9,7 +9,8 @@
 enum NavigationState{
       DRIVING,
       ALIGNING,
-      STOPPED
+      TARGET_REACHED,
+      OUT_OF_BOUNDARIES
 };
 
 
