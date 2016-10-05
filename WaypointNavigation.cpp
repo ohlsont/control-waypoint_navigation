@@ -14,7 +14,7 @@ WaypointNavigation::WaypointNavigation()
   targetRotation    = 0.0;
   aligning    = false;
   targetSet   = true;
-  poseSet     = true;
+  poseSet     = false;
   reachedHysteresisRatio = 2.0;
   newWaypoint = false;
 }
@@ -248,8 +248,9 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
   trajectory = t;
 
   // Add current pose at the begining
-  trajectory.insert( trajectory.begin(), new base::Waypoint(curPose.position,curPose.getYaw(),0,0));
-
+  if ( poseSet ){
+    trajectory.insert( trajectory.begin(), new base::Waypoint(curPose.position,curPose.getYaw(),0,0));
+  }
   //
   // currentWaypoint = trajectory.begin();
   currentSegment = 0;
@@ -276,22 +277,66 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 bool  WaypointNavigation::update(base::commands::Motion2D& mc){
   // 1) Update the current SEGMENT                            //TODO check whether is it the last
   // Select the segment such that robot is not withint immediate reach of the 2nd Waypoint
-  while ( (w2-xr).squaredNorm() <= corridorSq && currentSegment < trajectory.size()-2 ){
-      currentSegment++;
-      setSegmentWaypoint(w1, currentSegment);
-      setSegmentWaypoint(w2, currentSegment+1);
+  while ( (w2-xr).squaredNorm() <= corridorSq ){
+      if( currentSegment < trajectory.size()-2){ // This segment is the last one
+        setNavigationState(ALIGNING);
+        break;
+      } else {
+        currentSegment++;
+        setSegmentWaypoint(w1, currentSegment);
+        setSegmentWaypoint(w2, currentSegment+1);
+      }
   }
 
   // 2) Get intersection point with the Path (should also return distance from the segment)
   base::Vector2d xi = getClosestPointOnPath();
 
-  // 3) Get look ahead point
-  // 4) Get motion command to the lookahead point
+  // 3) Calculate the distance from the nominal trajectory
+  double distFromNominal = (xr-xi).squaredNorm();
+  if ( distFromNominal >= corridorSq ){
+    setNavigationState(OUT_OF_BOUNDARIES);
+  }
+
+  // STATEMACHINE - TODO
+  switch (getNavigationState()) {
+    case DRIVING:
+      // i) Get look ahead point
+      // ii) Get motion command to the lookahead point
+      break;
+    case ALIGNING:
+
+      break;
+    case OUT_OF_BOUNDARIES:
+
+      break;
+    case TARGET_REACHED:
+
+      break;
+  }
   return true;
 }
 
 base::Vector2d WaypointNavigation::getClosestPointOnPath(){
-  return base::Vector2d::Zero();
+  // Solving for parameter k such that closestPoint = w1 + k*segVector;
+  // 1) segVector = (w2-w1) Vector of the segment line
+  // Using the equations
+  //    a) w1 + segVector*k = xi
+  //    b) xr + perpendicular(segVector)*j = xi
+  // This gives [xr - w1] = [perpendicular(segVector), segVector][j; k]
+  // 2) Calculate k using the inverse matrix
+  // 3) Calculate the point of intersection using a)
+
+  // 1)
+  base::Vector2d segVector = w2 - w1;
+  segVector.normalize();
+  // 2)
+  base::Matrix2d inverseL;
+  inverseL  << segVector(2), -segVector(1),
+               segVector(1),  segVector(2);
+  base::Vector2d xi = inverseL*(xr-w1);
+  // 3)
+  xi = w1 + xi(2)*segVector;
+  return xi;
 }
 
 bool WaypointNavigation::setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment){
