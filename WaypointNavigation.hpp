@@ -109,7 +109,8 @@ class WaypointNavigation
     base::Waypoint lookaheadPoint;
     size_t currentSegment;
     double corridorSq; // Allowed Distance perpendicular to path segment
-    base::Vector2d w1, w2, xr;
+    double lookaheadDistance;
+    base::Vector2d w1, w2, xr, l1, l2;
 
     bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
     base::Vector2d getClosestPointOnPath();

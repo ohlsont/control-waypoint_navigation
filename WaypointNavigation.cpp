@@ -292,17 +292,45 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
   base::Vector2d xi = getClosestPointOnPath();
 
   // 3) Calculate the distance from the nominal trajectory
-  double distFromNominal = (xr-xi).squaredNorm();
-  if ( distFromNominal >= corridorSq ){
+  double distance = (xr-xi).squaredNorm();
+  if ( distance >= corridorSq ){
     setNavigationState(OUT_OF_BOUNDARIES);
   }
 
   // STATEMACHINE - TODO
   switch (getNavigationState()) {
     case DRIVING:
-      // i) Get look ahead point
-      // ii) Get motion command to the lookahead point
+      // i) Get the look ahead point segment
+      distance = (w2-xi).norm();
+      size_t lookahedSegment;
+      lookahedSegment = currentSegment;
+      for (; lookahedSegment < trajectory.size()-1; ) {
+        if (distance <= lookaheadDistance){
+          lookahedSegment++;
+          distance +=  distanceToNext->at(lookahedSegment);
+        } else { // Sufficient lookahead distance reached
+          break;
+        }
+      }
+      if (distance <= lookaheadDistance){
+        // End of trajectory was reached
+        setNavigationState(ALIGNING);
+        // Will execute the ALIGNING case within this update
+      } else {
+        // ii) Get the look ahead point
+        setSegmentWaypoint(l1, lookahedSegment);
+        setSegmentWaypoint(l2, lookahedSegment+1);
+        base::Vector2d lineVector, lookaheadPoint2D;
+        lineVector = l2-l1;
+        lineVector.normalize();
+        lookaheadPoint2D = l2 - lineVector*(distance-lookaheadDistance);
+        lookaheadPoint.position << lookaheadPoint2D(0),lookaheadPoint2D(1),0;
+        lookaheadPoint.heading  = atan2(lineVector(1),lineVector(0));
+
+        // iii) Get motion command to the lookahead point
+        // TODO
       break;
+      }
     case ALIGNING:
 
       break;
