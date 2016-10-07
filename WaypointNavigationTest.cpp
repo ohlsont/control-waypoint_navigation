@@ -6,21 +6,110 @@
 using namespace Eigen;
 
 int main() {
-    WaypointNavigation lp;
+    WaypointNavigation pathTracker;
+    base::Waypoint lpoint;
+    base::commands::Motion2D mc;
 
-
+    // = = = Robot = = =
     base::samples::RigidBodyState robotPose;
-    base::Waypoint targetPose;
-    targetPose.tol_position = 0.1;
-
     robotPose.cov_position = Eigen::Matrix3d::Identity() * 0.001;
+    robotPose.orientation.setIdentity();
+    robotPose.position = Eigen::Vector3d(0,0,0);
+    pathTracker.setPose(robotPose);
 
+    //
+    std::cout << "Test PT" << std::endl;
+    lpoint.heading = 45.0/180.0*M_PI;
+    lpoint.position = Eigen::Vector3d(1,1,0);
+    lpoint.tol_position = 0.1;
+    pathTracker.setLookaheadPoint(lpoint);
+    pathTracker.getMovementCommand(mc);
+    std::cout << "tv = " << mc.translation;
+    std::cout << ", rv = " << mc.rotation << std::endl << std::endl;
+
+    std::cout << "Test Ackermann" << std::endl;
+    lpoint.heading = 10.0/180.0*M_PI;
+    lpoint.position = Eigen::Vector3d(1,0.1,0);
+    lpoint.tol_position = 0.1;
+    pathTracker.setLookaheadPoint(lpoint);
+    pathTracker.getMovementCommand(mc);
+    std::cout << "tv = " << mc.translation;
+    std::cout << ", rv = " << mc.rotation << std::endl << std::endl;
+
+
+    std::cout << "Test Trajectory" << std::endl;
+    robotPose.orientation
+      = Eigen::Quaterniond( Eigen::AngleAxisd(5.0/180.0*M_PI, Eigen::Vector3d::UnitZ()));
+    pathTracker.setPose(robotPose);
+
+    uint N = 3;
+    std::vector<base::Waypoint> trajectory(N);
+    std::vector<base::Waypoint*> ptrajectory(N);
+    for (size_t i = 0; i < N; i++)
+    {
+
+        trajectory.at(i).position = Eigen::Vector3d(i+1.0,.5,0);
+        trajectory.at(i).heading  = 0.0/180.0*M_PI;
+        trajectory.at(i).tol_position = 0.1;
+        ptrajectory.at(i) = &trajectory.at(i);
+        //trajectory.push_back(lpoint);
+    }
+    std::cout << "Trajectory created" << std::endl;
+    pathTracker.setTrajectory(ptrajectory);
+    std::cout << "Trajectory set" << std::endl;
+    pathTracker.setNavigationState(DRIVING);
+
+    std::cout << "Robot = (" << robotPose.position.x() <<","
+              << robotPose.position.y() <<","
+              << robotPose.position.z() <<")"
+              << "yaw = " <<  robotPose.getYaw()*180/M_PI << "deg." << std::endl;
+
+     while(pathTracker.getNavigationState() == DRIVING ){
+      // = = =  Get motion commands  = = =
+      pathTracker.update(mc);
+      std::cout << "tv = " << mc.translation;
+      std::cout << ", rv = " << mc.rotation << std::endl;
+
+      // = = =  Simulate motion commands  = = =
+      double dt = 1.0;
+      double yaw = robotPose.getYaw();
+      Eigen::AngleAxisd toWCF, robotRot;
+      toWCF = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ());
+
+
+      if ( fabs(mc.translation) < 0.001 ){
+        // Point turn
+        std::cout << "PT of " << (mc.rotation*dt)*180/M_PI << "deg" << std::endl;
+        robotRot = AngleAxisd(mc.rotation*dt, Eigen::Vector3d::UnitZ());
+        robotPose.orientation = Eigen::Quaterniond(robotRot) * robotPose.orientation;
+      } else if ( fabs(mc.rotation) < 0.001){
+        // Straight line
+        std::cout << "SL" << std::endl;
+        robotPose.position += (mc.translation*dt)*(toWCF*Eigen::Vector3d::UnitX());
+      } else {
+        // Ackermann
+        std::cout << "ACK" << std::endl;
+        Eigen::Vector3d turnCenter;
+        turnCenter << 0.0, mc.translation/mc.rotation, 0.0;
+        turnCenter = toWCF*(turnCenter) + robotPose.position;
+        robotRot = AngleAxisd(mc.rotation*dt, Eigen::Vector3d::UnitZ());
+        robotPose.position = robotRot*(robotPose.position - turnCenter) + turnCenter;
+        robotPose.orientation = Eigen::Quaterniond(robotRot)*robotPose.orientation;
+      }
+
+      std::cout << "Robot = (" << robotPose.position.x() <<","
+                << robotPose.position.y() <<","
+                << robotPose.position.z() <<"), "
+                << "yaw = "<<  robotPose.getYaw()*180/M_PI << "deg."
+                << std::endl << std::endl;
+      pathTracker.setPose(robotPose);
+    }
+/*
     double tv, rv;
     std::cout << "----- Orientation tests" << std::endl << std::endl;
-    robotPose.orientation.setIdentity();
-    targetPose.heading = 45.0/180.0*M_PI;
-    robotPose.position = Eigen::Vector3d(0,0,0);
-    targetPose.position = Eigen::Vector3d(1,1,0);
+
+
+
     lp.setPose(robotPose);
     lp.setTargetPose(targetPose);
     lp.getMovementCommand(tv, rv);
@@ -34,7 +123,7 @@ int main() {
     lp.setTargetPose(targetPose);
     lp.getMovementCommand(tv, rv);
 
-    /**/
+
     // NEW tests
     //test case target in front of robot
     std::cout << "----- FWD TEST" << std::endl << std::endl;
@@ -124,7 +213,7 @@ int main() {
     std::cout << "Tv: " << tv << " Rv: " << rv << std::endl;
     assert(fabs(tv) > 0 && rv > 0);
     std::cout << "Test 5 PASSED" << std::endl << std::endl;
-/*
+
     //test case robot needs to be alligned
     robotPose.orientation = Quaterniond(AngleAxisd(M_PI/4.0, Vector3d::UnitZ()));
     targetPose.heading = M_PI/2.0;

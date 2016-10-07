@@ -23,7 +23,7 @@ class WaypointNavigation
   	/**
   	* set positon and orientation, where to drive to
   	*/
-  	void setTargetPose(base::Waypoint &pose);
+  	void setLookaheadPoint(base::Waypoint &pose);
 
   	/**
   	* Set current orientation and position
@@ -35,7 +35,7 @@ class WaypointNavigation
   	* that should drive the robot from the current
   	* pose to the target pose
   	*/
-  	void getMovementCommand(double &tv, double &rv);
+  	void getMovementCommand (base::commands::Motion2D& mc);
 
     /**
   	* calculates a rotational velocity for point turn
@@ -89,13 +89,14 @@ class WaypointNavigation
   	bool newWaypoint;
   	double stopAndTurnAngle;
     double minTurnRadius;
-  	double tvP;
-  	double rvP;
   	double maxDisalignment;
     double maxDisplacementAckermannTurn;
   	double reachedHysteresisRatio;
-    double targetTranslation;
-    double targetRotation;
+    double translationalVelocity;
+    double rotationalVelocity;
+    double corridor; // Allowed Distance perpendicular to path segment
+    double lookaheadDistance;
+
     bool aligning;
   	bool targetSet;
   	bool poseSet;
@@ -108,9 +109,8 @@ class WaypointNavigation
   	std::vector<base::Waypoint *>::iterator currentWaypoint;
     base::Waypoint lookaheadPoint;
     size_t currentSegment;
-    double corridorSq; // Allowed Distance perpendicular to path segment
-    double lookaheadDistance;
-    base::Vector2d w1, w2, xr, l1, l2;
+
+    base::Vector2d w1, w2, xr;
 
     bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
     base::Vector2d getClosestPointOnPath();
