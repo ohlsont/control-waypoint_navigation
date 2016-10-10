@@ -57,13 +57,6 @@ class WaypointNavigation
   	*/
   	bool testSetNextWaypoint();
 
-  	/**
-  	* returns an iterator, that points to the current waypoint in
-  	* the trajectory
-  	*/
-  	std::vector<base::Waypoint *>::const_iterator getCurrentWaypoint() const {
-  	    return currentWaypoint;
-    }
 
   	/**
   	* returns the trajectory
@@ -86,31 +79,29 @@ class WaypointNavigation
   	bool waypointReached(base::Waypoint &target) const;
     NavigationState mNavigationState;
 
+    bool aligning;
+  	bool targetSet;
+  	bool poseSet;
   	bool newWaypoint;
-  	double stopAndTurnAngle;
-    double minTurnRadius;
-  	double maxDisalignment;
+
+  	double minTurnRadius;        // Minimum turn radius [m]
     double maxDisplacementAckermannTurn;
-  	double reachedHysteresisRatio;
+  	double maxDisalignment;      // May be used
     double translationalVelocity;
     double rotationalVelocity;
     double corridor; // Allowed Distance perpendicular to path segment
     double lookaheadDistance;
+    double distanceToPath;
 
-    bool aligning;
-  	bool targetSet;
-  	bool poseSet;
   	base::samples::RigidBodyState curPose;
   	base::Waypoint targetPose;
 
-
   	std::vector<double> *distanceToNext;
     std::vector<base::Waypoint *> trajectory;
-  	std::vector<base::Waypoint *>::iterator currentWaypoint;
-    base::Waypoint lookaheadPoint;
+  	base::Waypoint lookaheadPoint;
     size_t currentSegment;
 
-    base::Vector2d w1, w2, xr;
+    base::Vector2d w1, w2, l1, l2, xr;
 
     bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
     base::Vector2d getClosestPointOnPath();

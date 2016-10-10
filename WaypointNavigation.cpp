@@ -4,19 +4,25 @@
 WaypointNavigation::WaypointNavigation()
 {
   mNavigationState = TARGET_REACHED;
-  stopAndTurnAngle = 30.0 / 180.0 * M_PI;
-  minTurnRadius    = 0.6; // (in meters)
-  maxDisalignment = 10.0 / 180.0 * M_PI;
-  maxDisplacementAckermannTurn = 0.25; // (meters from straight line to the next point)
-  translationalVelocity = 0.05; // [m/s]
-  rotationalVelocity = 0.15;    // [rad/s] ... cca 8.6 deg/s
-  corridor = .2;
-  lookaheadDistance = .6;
+  // Booleans
   aligning    = false;
   targetSet   = false;
   poseSet     = false;
-  reachedHysteresisRatio = 2.0;
   newWaypoint = false;
+
+  // Ackermann turn parameters
+  minTurnRadius    = 0.6; // (in meters)
+  maxDisplacementAckermannTurn = 0.25; // (meters from straight line to the next point)
+  // Alignment parameters
+  maxDisalignment = 10.0 / 180.0 * M_PI;
+
+  // Velocities
+  translationalVelocity = 0.05; // [m/s]
+  rotationalVelocity = 0.15;    // [rad/s] ... cca 8.6 deg/s
+  // Distances
+  corridor = .2;
+  lookaheadDistance = .6;
+
 }
 
 NavigationState WaypointNavigation::getNavigationState() {
@@ -251,7 +257,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 
 bool  WaypointNavigation::update(base::commands::Motion2D& mc){
   // 1) Update the current SEGMENT                            //TODO check whether is it the last
-  // Select the segment such that robot is not withint immediate reach of the 2nd Waypoint
+  // Select the segment such that robot is not within immediate reach of the 2nd Waypoint
   while ( (w2-xr).norm() <= corridor ){
       if( currentSegment < trajectory.size()-1){
         setSegmentWaypoint(w1, currentSegment);
@@ -270,18 +276,20 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
   << std::endl;
 
   // 3) Calculate the distance from the nominal trajectory
-  double distance = (xr-xi).norm();
-  if ( distance >= corridor ){
+  distanceToPath = (xr-xi).norm();
+  if ( distanceToPath >= corridor ){
     setNavigationState(OUT_OF_BOUNDARIES);
   }
-  std::cout << "Distance from nominal: " << distance << std::endl;
+  std::cout << "Distance from nominal: " << distanceToPath << std::endl;
 
 
   // STATEMACHINE - TODO
   switch (getNavigationState()) {
     case DRIVING:
       {
-      distance += (w2-xi).norm();
+      double distance;
+      distance = distanceToPath + (w2-xi).norm();
+
       // i) Get the look ahead point segment
       base::Vector2d lineVector, lookaheadPoint2D;
       if (distance > lookaheadDistance) // Lookahead within same seg.
@@ -289,16 +297,16 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         // ii) Get the look ahead point
         lineVector = w2-w1;
         lineVector.normalize();
-        lookaheadPoint2D = xi + lineVector*lookaheadDistance;
+        lookaheadPoint2D = xi + lineVector*(lookaheadDistance-distanceToPath);
       }
       else
       { // Find the right segment
-        size_t lookahedSegment;
-        lookahedSegment = currentSegment;
-        for (; lookahedSegment < distanceToNext->size() &&
+        size_t lookaheadSegment;
+        lookaheadSegment = currentSegment;
+        for (; lookaheadSegment < distanceToNext->size() &&
                distance <= lookaheadDistance;
-             lookahedSegment++){
-             distance +=  distanceToNext->at(lookahedSegment);
+             lookaheadSegment++){
+             distance +=  distanceToNext->at(lookaheadSegment);
         }
         if (distance <= lookaheadDistance){
           // End of trajectory was reached
@@ -311,14 +319,14 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         else
         {
           // ii) Get the look ahead point
-          base::Vector2d l1, l2;
-          setSegmentWaypoint(l1, lookahedSegment-1);
-          setSegmentWaypoint(l2, lookahedSegment);
+          setSegmentWaypoint(l1, lookaheadSegment-1);
+          setSegmentWaypoint(l2, lookaheadSegment);
           lineVector = l2-l1;
           lineVector.normalize();
           lookaheadPoint2D = l2 - lineVector*(distance-lookaheadDistance);
         }
       }
+      // Set lookahead point: Vector2d -> Waypoint
       lookaheadPoint.position << lookaheadPoint2D(0),lookaheadPoint2D(1),0;
       lookaheadPoint.heading  = atan2(lineVector(1),lineVector(0));
       targetSet = true;
