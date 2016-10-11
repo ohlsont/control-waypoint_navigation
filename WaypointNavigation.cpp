@@ -36,9 +36,13 @@ void  WaypointNavigation::setNavigationState(NavigationState state){
 
 void WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
 {
-  poseSet = true;
   curPose = pose;
   xr = base::Vector2d(pose.position(0), pose.position(1));
+  if (!poseSet && !trajectory.empty()){
+    w1 << curPose.position(0), curPose.position(1);
+    setSegmentWaypoint(w2, currentSegment);
+  }
+  poseSet=true;
 }
 
 void WaypointNavigation::setLookaheadPoint(base::Waypoint& waypoint)
@@ -237,10 +241,11 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 
   currentSegment = 0;
   // Add current pose at the begining
-  if ( poseSet ){
+  if (poseSet){
     w1 << curPose.position(0), curPose.position(1);
     setSegmentWaypoint(w2, currentSegment);
   }
+  
   if(!trajectory.empty()) {
     distanceToNext = new std::vector<double>(trajectory.size()-1);
     base::Vector3d wp;
@@ -253,6 +258,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
   } else {
     distanceToNext = new std::vector<double>();
   }
+  setNavigationState(DRIVING);
 }
 
 bool  WaypointNavigation::update(base::commands::Motion2D& mc){
@@ -283,9 +289,12 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
   std::cout << "Distance from nominal: " << distanceToPath << std::endl;
 
 
+
+  NavigationState currentState = getNavigationState();
+  std::cout << "Nav. state: " << currentState << std::endl;
   // STATEMACHINE - TODO
-  switch (getNavigationState()) {
-    case DRIVING:
+  switch (currentState) {
+    case (NavigationState)DRIVING:
       {
       double distance;
       distance = distanceToPath + (w2-xi).norm();
@@ -329,6 +338,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
       // Set lookahead point: Vector2d -> Waypoint
       lookaheadPoint.position << lookaheadPoint2D(0),lookaheadPoint2D(1),0;
       lookaheadPoint.heading  = atan2(lineVector(1),lineVector(0));
+      lookaheadPoint.tol_position = 0.1;
       targetSet = true;
       std::cout << "Lookahead point: (" << lookaheadPoint2D.x() << ", "
                                       << lookaheadPoint2D.y() << ") "
@@ -349,6 +359,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 
       break;
     default:
+      std::cout<<"default case"<<std::endl;
       break;
   }
   return true;

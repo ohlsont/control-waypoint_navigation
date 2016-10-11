@@ -7,7 +7,7 @@
 #include <base/commands/Motion2D.hpp>
 
 enum NavigationState{
-      DRIVING,
+      DRIVING=0,
       ALIGNING,
       TARGET_REACHED,
       OUT_OF_BOUNDARIES
