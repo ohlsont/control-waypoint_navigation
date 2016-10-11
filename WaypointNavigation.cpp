@@ -283,11 +283,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 
   // 3) Calculate the distance from the nominal trajectory
   distanceToPath = (xr-xi).norm();
-  if ( distanceToPath >= corridor ){
-    setNavigationState(OUT_OF_BOUNDARIES);
-  }
   std::cout << "Distance from nominal: " << distanceToPath << std::endl;
-
 
 
   NavigationState currentState = getNavigationState();
@@ -296,6 +292,12 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
   switch (currentState) {
     case (NavigationState)DRIVING:
       {
+	if ( distanceToPath >= corridor ){
+		setNavigationState(OUT_OF_BOUNDARIES);
+		mc.translation = 0;
+		mc.rotation =0;
+		return false;
+	}
       double distance;
       distance = distanceToPath + (w2-xi).norm();
 
@@ -349,12 +351,19 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
       }
     case ALIGNING:
       {
-
+	std::cout << "Alinging not implemented yet" << std::endl;	
+	mc.translation = 0;
+	mc.rotation    = 0;
       break;
       }
-    case OUT_OF_BOUNDARIES:
-
-      break;
+    case OUT_OF_BOUNDARIES:{
+	mc.translation = 0;
+	mc.rotation    = 0;
+	if ( distanceToPath < corridor ){
+	    setNavigationState(DRIVING);
+  	}
+	break;
+    }
     case TARGET_REACHED:
 
       break;
