@@ -1,10 +1,11 @@
-#ifndef DUMBTRAJECTORYFOLLOWER_HPP
-#define DUMBTRAJECTORYFOLLOWER_HPP
+#ifndef WAYPOINT_NAVIGATION_HPP
+#define WAYPOINT_NAVIGATION_HPP
 #include <Eigen/Geometry>
 #include <vector>
 #include <base/samples/rigid_body_state.h>
 #include <base/waypoint.h>
 #include <base/commands/Motion2D.hpp>
+
 
 enum NavigationState{
       DRIVING=0,
@@ -21,7 +22,7 @@ class WaypointNavigation
   	WaypointNavigation();
 
   	/**
-  	* set positon and orientation, where to drive to
+  	* Set positon and orientation, where to drive to
   	*/
   	void setLookaheadPoint(base::Waypoint &pose);
 
@@ -31,81 +32,83 @@ class WaypointNavigation
         bool setPose(base::samples::RigidBodyState &pose);
 
   	/**
-  	* calculates a translational and rotational velocity
-  	* that should drive the robot from the current
-  	* pose to the target pose
-  	*/
-  	void getMovementCommand (base::commands::Motion2D& mc);
-
-    /**
-  	* calculates a rotational velocity for point turn
-  	* that would align the robot with the
-  	* orientation of the final target pose
-  	*/
-  	void getAlignmentCommand(double &tv, double &rv);
-
-  	/**
-  	* sets the trajecory the robot should follow
+  	* Sets the trajecory the robot should follow
   	*/
   	void setTrajectory(std::vector<base::Waypoint *> &t);
 
   	/**
-  	* tests if the current Waypoint was reached and switches to
-  	* the next waypoint in the trajectory
-  	*
-  	* returns true if new waypoint was selected
-  	*/
-  	bool testSetNextWaypoint();
-
-
-  	/**
-  	* returns the trajectory
+  	* Returns the trajectory
   	*/
   	const std::vector<base::Waypoint *> &getTrajectory() const {
   	    return trajectory;
   	}
 
-    NavigationState getNavigationState();
-    void setNavigationState(NavigationState state);
+    	NavigationState getNavigationState();
+    	void setNavigationState(NavigationState state);
 
-    const base::Waypoint* getLookaheadPoint();
+    	const base::Waypoint* getLookaheadPoint();
 
-    bool update(base::commands::Motion2D& mc);
+	bool update(base::commands::Motion2D& mc);
+
+	bool configure(	double minR,
+			double tv, double rv,
+			double cr, double lad);
+  	/**
+  	* Calculates a motion command (Ackermann or Point turn)
+  	* given the robot pose and DRIVING mode
+  	*/
+  	void getMovementCommand (base::commands::Motion2D& mc);
+
+    	/**
+  	* Calculates a motion command
+	* to  align the robot with the heading of the final pose
+  	*/
+  	void getAlignmentCommand(double &tv, double &rv);
+
 
   private:
-  	/*
-  	* Calculates if the given waypoint was reached
-  	*/
-  	bool waypointReached(base::Waypoint &target) const;
-    NavigationState mNavigationState;
-
-    bool aligning;
+	/*
+	* MEMBER VARIABLES
+	*/
+  	NavigationState mNavigationState;
+	bool aligning;
   	bool targetSet;
   	bool poseSet;
   	bool newWaypoint;
 
-  	double minTurnRadius;        // Minimum turn radius [m]
-    double maxDisplacementAckermannTurn;
-  	double maxDisalignment;      // May be used
-    double translationalVelocity;
-    double rotationalVelocity;
-    double corridor; // Allowed Distance perpendicular to path segment
-    double lookaheadDistance;
-    double distanceToPath;
+  	double minTurnRadius;        	// Minimum turn radius [m]
+    	double maxDisplacementAckermannTurn;
+  	double maxDisalignment;      	// May be used
+    	double translationalVelocity;
+	double rotationalVelocity;
+	double corridor; 		// Allowed Distance perpendicular to path segment
+	double lookaheadDistance;
+	double distanceToPath;
 
   	base::samples::RigidBodyState curPose;
   	base::Waypoint targetPose;
 
   	std::vector<double> *distanceToNext;
-    std::vector<base::Waypoint *> trajectory;
+	std::vector<base::Waypoint *> trajectory;
   	base::Waypoint lookaheadPoint;
-    size_t currentSegment;
+    	size_t currentSegment;
 
-    base::Vector2d w1, w2, l1, l2, xr;
+    	base::Vector2d w1, w2, l1, l2, xr;
 
-    bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
-    base::Vector2d getClosestPointOnPath();
+	/* -------------------------------
+	*  PRIVATE FUNCTIONS
+	*  -------------------------------*/
 
+	/**
+	* Helper function for setting values of Vector2d with X, Y of a trajectory waypoint
+	*/
+    	bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
+
+	/**
+	* Helper function for finding the closes point on the path segment 
+	* from the current position of the robot
+	*/
+    	base::Vector2d getClosestPointOnPath();
 };
 
 #endif

@@ -190,46 +190,8 @@ void WaypointNavigation::getAlignmentCommand(double &tv, double &rv){
     rv = 0 ;
     setNavigationState(TARGET_REACHED);
   } else {
-    rv =  angleToTarget > 0 ? 0.05 : -0.05; // TODO speed from config
+    rv =  angleToTarget > 0 ? rotationalVelocity: -rotationalVelocity;
   }
-}
-
-
-bool WaypointNavigation::testSetNextWaypoint()
-{
-  if(trajectory.empty())
-  {
-    std::cout << "Trajectory is empty" << std::endl;
-    setNavigationState(TARGET_REACHED);
-    return newWaypoint;
-  }
-
-  /*
-  while(waypointReached(**currentWaypoint)) {
-    std::cout << "TARGET REACHED " << std::endl;
-    std::vector<base::Waypoint *>::iterator nextWp = currentWaypoint;
-    nextWp++;
-
-    if(nextWp != trajectory.end()) // past-the-end element
-    {
-      setNavigationState(DRIVING);
-      newWaypoint = true;
-      currentWaypoint++;
-      setTargetPose(**currentWaypoint);
-    } else { // Target reached, is end of line
-      setNavigationState(ALIGNING);
-      break;
-    }
-  }
-  */
-
-  //HERE MY CODE FOR UPDATING CURRENT SEGMENT
-
-
-  bool ret = newWaypoint;
-  newWaypoint = false;
-
-  return ret;
 }
 
 /*
@@ -416,20 +378,7 @@ const base::Waypoint* WaypointNavigation::getLookaheadPoint(){
   return &lookaheadPoint;
 };
 
-bool WaypointNavigation::waypointReached(base::Waypoint& target) const
-{
-  //check if we reached target position in respect, to covariance of target position
-  for(int i = 0; i< 3; i++){
-    double dist = fabs(curPose.position[i] - target.position[i]);
-    double reached_dist = target.tol_position;
-    std::cout << "Dist " << i << " is " << dist << " reached dist is " << reached_dist << std::endl;
-    if(dist > reached_dist)
-    return false;
-  }
-
-  std::cout << "Waypoint reached " << std::endl;
-  return true;
-  //return true;
+ //return true;
   /*
   Eigen::Quaterniond oriDiffToTarget = curPose.orientation.inverse() * Eigen::Quaterniond(Eigen::AngleAxisd(targetPose.heading, Eigen::Vector3d::UnitZ()));
   Eigen::Vector3d t = oriDiffToTarget * Eigen::Vector3d(1.0,0,0);
@@ -440,4 +389,19 @@ bool WaypointNavigation::waypointReached(base::Waypoint& target) const
 
   return false;
   */
+
+bool WaypointNavigation::configure(double minR,	double tv, double rv,
+						double cr, double lad)
+{
+	// All config. parameters must be possitive
+	if( minR>0 && tv>0 && rv>0 && cr > 0 && lad > 0){
+		minTurnRadius 		= minR;
+		translationalVelocity 	= tv;
+		rotationalVelocity 	= rv;
+		corridor		= cr;
+		lookaheadDistance	= lad;
+		return true;
+	} else {
+		return false;
+	}
 }
