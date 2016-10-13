@@ -4,7 +4,7 @@
 #include <iostream>
 
 using namespace Eigen;
-
+using namespace waypoint_navigation_lib;
 int main() {
     WaypointNavigation pathTracker;
     base::Waypoint lpoint;

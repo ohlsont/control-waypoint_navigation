@@ -1,6 +1,8 @@
 #include "WaypointNavigation.hpp"
 #include <iostream>
 
+namespace waypoint_navigation_lib{
+
 WaypointNavigation::WaypointNavigation()
 {
   mNavigationState = TARGET_REACHED;
@@ -63,8 +65,7 @@ void WaypointNavigation::setLookaheadPoint(base::Waypoint& waypoint)
 // Implementation of "pure pursuit" path tracking movement command
 void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
 {
-
-  //check if std deviation is bigger than the specified std deviation for the current target pose
+//check if std deviation is bigger than the specified std deviation for the current target pose
   for (int i = 0; i<3; i++) {
     //not no sqrt, as both values are sqared, and > is vallid in this case
   if(curPose.cov_position(i,i) > lookaheadPoint.tol_position) {
@@ -134,8 +135,7 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
     std::cout << err_ackermann /M_PI*180  << " Error if by Ackermann (deg)" << std::endl;
     std::cout << distFromLine <<  " Distance from straight line (m)" << std::endl;
 
-    // SELECT THE MORE APPROPRIATE MOTION - WHICH ALIGNS THE ROBOT MORE WITH THE TARGET Orientation
-    // TODO WEIGHTS CAN BE USED TO INCREASE THE COST OF A POINT TURN
+    // SELECT THE MORE APPROPRIATE MOTION
     if( fabs(turn_radius) <= minTurnRadius            ||
       //  fabs(err_straightLine) < fabs(err_ackermann)  ||
         fabs(distFromLine)>= maxDisplacementAckermannTurn )
@@ -231,7 +231,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 }
 
 bool  WaypointNavigation::update(base::commands::Motion2D& mc){
-  // 1) Update the current SEGMENT                            //TODO check whether is it the last
+  // 1) Update the current SEGMENT       
   // Select the segment such that robot is not within immediate reach of the 2nd Waypoint
   while ( (w2-xr).norm() <= corridor ){
       if( currentSegment < trajectory.size()-1){
@@ -239,6 +239,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         setSegmentWaypoint(w2, currentSegment+1);
         currentSegment++;
       } else {
+        // Last segment handling, vicinity of final waypoint
         break;
       }
   }
@@ -460,4 +461,5 @@ bool WaypointNavigation::getProgressOnSegment(int segmentNumber,
  return true;
 }
 
+}
 

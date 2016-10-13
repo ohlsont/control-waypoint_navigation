@@ -6,6 +6,7 @@
 #include <base/waypoint.h>
 #include <base/commands/Motion2D.hpp>
 
+namespace waypoint_navigation_lib{
 
 enum NavigationState{
       DRIVING=0,
@@ -112,5 +113,5 @@ class WaypointNavigation
 	*/
     	base::Vector2d getClosestPointOnPath();
 };
-
+}
 #endif
