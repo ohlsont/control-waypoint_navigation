@@ -34,15 +34,22 @@ void  WaypointNavigation::setNavigationState(NavigationState state){
 }
 
 
-void WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
+bool WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
 {
-  curPose = pose;
-  xr = base::Vector2d(pose.position(0), pose.position(1));
-  if (!poseSet && !trajectory.empty()){
-    w1 << curPose.position(0), curPose.position(1);
-    setSegmentWaypoint(w2, currentSegment);
-  }
-  poseSet=true;
+    if( isnan(pose.position(0)) || isnan(pose.position(1)) ){
+        // Position data are not valid, pose will not be set
+        std::cout << "Position is not valid!" << std::endl;
+        return false;
+    } else {
+        curPose = pose;
+        xr = base::Vector2d(pose.position(0), pose.position(1));
+        if (!poseSet && !trajectory.empty()){
+            w1 << curPose.position(0), curPose.position(1);
+            setSegmentWaypoint(w2, currentSegment);
+        }
+        poseSet=true;
+        return true;
+    }
 }
 
 void WaypointNavigation::setLookaheadPoint(base::Waypoint& waypoint)

@@ -28,7 +28,7 @@ class WaypointNavigation
   	/**
   	* Set current orientation and position
   	*/
-  	void setPose(base::samples::RigidBodyState &pose);
+        bool setPose(base::samples::RigidBodyState &pose);
 
   	/**
   	* calculates a translational and rotational velocity
