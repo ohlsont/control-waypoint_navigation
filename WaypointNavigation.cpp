@@ -329,9 +329,22 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 	mc.translation = 0;
 	mc.rotation    = 0;
 	if ( distanceToPath < corridor ){
-	    setNavigationState(DRIVING);
-  	}
-	break;
+	  	setNavigationState(DRIVING);
+  	} else if(currentSegment > 0){
+	// try matching the robot position with the previous segment
+		double progress, distAlong, distPerpendicular;
+	        getProgressOnSegment(currentSegment-1, progress, distAlong, distPerpendicular);
+		if (	fabs(distAlong)		 < corridor && 
+			fabs(distPerpendicular)	 < corridor){
+		// Robot is in the "Bounding box: of the previou segment
+		std::cout << "Resolved, robot was in previou segment with progres off: "
+		<< progress*100 << "\%, segment decremented" << std::endl;
+		currentSegment--;
+    		} else {
+		std::cout << "Robot not found in the previous segment corridor" << std::endl;
+		}
+	}
+      break;
     }
     case TARGET_REACHED:
 
@@ -376,7 +389,7 @@ bool WaypointNavigation::setSegmentWaypoint(base::Vector2d& waypoint, int indexS
 
 const base::Waypoint* WaypointNavigation::getLookaheadPoint(){
   return &lookaheadPoint;
-};
+}
 
  //return true;
   /*
@@ -405,3 +418,46 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
 		return false;
 	}
 }
+
+bool WaypointNavigation::getProgressOnSegment(int segmentNumber,
+				 double& progress, double& distAlong, double& distPerpend){
+  // Solving for parameter k such that closestPoint = w1 + k*segVector;
+  // 1) segVector = (w2-w1) Vector of the segment line
+  // Using the equations
+  //    a) w1 + segVector*k = xi
+  //    b) xr + perpendicular(segVector)*j = xi
+  // This gives [xr - w1] = [perpendicular(segVector), segVector][j; k]
+  // 2) Calculate k using the inverse matrix
+  // 3) Calculate the point of intersection using a)
+  // k is also the progress along that segment
+
+  // Using wStart and wEnd instead of w1, w2
+  // 1)
+  base::Vector2d segVector, wStart, wEnd;
+  setSegmentWaypoint(wStart, segmentNumber);
+  setSegmentWaypoint(wEnd  , segmentNumber+1);
+  segVector = wEnd-wStart;
+
+  // 2)
+  double determinant = segVector.dot(segVector);
+  base::Matrix2d inverseL;
+  inverseL  << segVector(1), -segVector(0),
+               segVector(0),  segVector(1);
+  inverseL /= determinant; 
+  base::Vector2d xi = inverseL*(xr-wStart);
+  // 3)
+  progress =  xi(1);
+  xi = wStart + progress*segVector;
+  distPerpend = (xr-xi).norm();
+
+  if ( progress >= 1 ) {
+	distAlong = (progress-1)*segVector.norm();
+  } else if (progress <= 0 ) {
+	distAlong = progress*segVector.norm();
+  } else{
+	distAlong = 0;
+  }
+ return true;
+}
+
+

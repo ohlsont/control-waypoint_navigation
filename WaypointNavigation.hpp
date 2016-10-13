@@ -65,6 +65,8 @@ class WaypointNavigation
   	*/
   	void getAlignmentCommand(double &tv, double &rv);
 
+	bool getProgressOnSegment(int segmentNumber,
+			 double& progress, double& distAlong, double& distPerpend);
 
   private:
 	/*
