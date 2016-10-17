@@ -14,8 +14,6 @@ enum NavigationState{
       TARGET_REACHED,
       OUT_OF_BOUNDARIES
 };
-
-
 class WaypointNavigation
 {
   public:
@@ -80,13 +78,14 @@ class WaypointNavigation
   	bool newWaypoint;
 
   	double minTurnRadius;        	// Minimum turn radius [m]
-    	double maxDisplacementAckermannTurn;
+    double maxDisplacementAckermannTurn;
   	double maxDisalignment;      	// May be used
-    	double translationalVelocity;
+    double translationalVelocity;
 	double rotationalVelocity;
 	double corridor; 		// Allowed Distance perpendicular to path segment
 	double lookaheadDistance;
 	double distanceToPath;
+    double targetHeading;
 
   	base::samples::RigidBodyState curPose;
   	base::Waypoint targetPose;
@@ -108,7 +107,7 @@ class WaypointNavigation
     	bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
 
 	/**
-	* Helper function for finding the closes point on the path segment 
+	* Helper function for finding the closes point on the path segment
 	* from the current position of the robot
 	*/
     	base::Vector2d getClosestPointOnPath();
