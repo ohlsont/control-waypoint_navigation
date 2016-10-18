@@ -66,7 +66,7 @@ class WaypointNavigation
 
 	bool getProgressOnSegment(int segmentNumber,
 			 double& progress, double& distAlong, double& distPerpend);
-
+        double getLookaheadDistance();
   private:
 	/*
 	* MEMBER VARIABLES

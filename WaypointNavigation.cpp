@@ -34,8 +34,9 @@ NavigationState WaypointNavigation::getNavigationState() {
 void  WaypointNavigation::setNavigationState(NavigationState state){
     mNavigationState = state;
 }
-
-
+double WaypointNavigation::getLookaheadDistance(){
+    return lookaheadDistance;
+}
 bool WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
 {
     if( isnan(pose.position(0)) || isnan(pose.position(1)) ){
@@ -468,6 +469,12 @@ return false;
 bool WaypointNavigation::configure(double minR,	double tv, double rv,
     double cr, double lad)
     {
+        std::cout << "Received Path Tracker config values:" << std::endl <<
+        "Rmin:\t" << minR << std::endl     <<
+        "tv:\t" << tv << std::endl       <<
+        "rv:\t" << rv << std::endl       <<
+        "cr:\t" << cr << std::endl       <<
+        "lh:\t" << lad << std::endl;
         // All config. parameters must be possitive
         if( minR>0 && tv>0 && rv>0 && cr > 0 && lad > 0){
             minTurnRadius 		= minR;
@@ -475,6 +482,7 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
             rotationalVelocity 	= rv;
             corridor		= cr;
             lookaheadDistance	= lad;
+            // std::cout << "Config successful, " << getLookaheadDistance() << std::endl;
             return true;
         } else {
             return false;
