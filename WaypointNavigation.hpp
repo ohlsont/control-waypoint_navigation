@@ -67,6 +67,7 @@ class WaypointNavigation
 	bool getProgressOnSegment(int segmentNumber,
 			 double& progress, double& distAlong, double& distPerpend);
         double getLookaheadDistance();
+        void setCurrentSegment(int segmentNumber); // TESTING ONLY - TODO Remove
   private:
 	/*
 	* MEMBER VARIABLES
@@ -76,6 +77,7 @@ class WaypointNavigation
   	bool targetSet;
   	bool poseSet;
   	bool newWaypoint;
+        bool finalPhase;
 
   	double minTurnRadius;        	// Minimum turn radius [m]
     double maxDisplacementAckermannTurn;

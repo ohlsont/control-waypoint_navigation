@@ -11,12 +11,13 @@ WaypointNavigation::WaypointNavigation()
     targetSet   = false;
     poseSet     = false;
     newWaypoint = false;
+    finalPhase  = false;
 
     // Ackermann turn parameters
     minTurnRadius    = 0.6; // (in meters)
     maxDisplacementAckermannTurn = 0.25; // (meters from straight line to the next point)
     // Alignment parameters
-    maxDisalignment = 10.0 / 180.0 * M_PI;
+    maxDisalignment = 5.0 / 180.0 * M_PI;
 
     // Velocities
     translationalVelocity = 0.05; // [m/s]
@@ -24,6 +25,7 @@ WaypointNavigation::WaypointNavigation()
     // Distances
     corridor = .2;
     lookaheadDistance = .6;
+    distanceToNext = new std::vector<double>();
 
 }
 
@@ -85,9 +87,6 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         return;
     }
 
-    std::cout << "X: " << lookaheadPoint.position.x() << " Y: " << lookaheadPoint.position.y() << " Lookahead point, WCF" << std::endl;
-    std::cout << "X: " << curPose.position.x() << " Y: " << curPose.position.y() << " Robot position, WCF" << std::endl;
-
     // Vector to target position
     Eigen::Vector3d driveVector = lookaheadPoint.position - curPose.position;
     driveVector.z() = 0; // Do not care about robot's Z displacement, navigation in 2D plane
@@ -96,9 +95,14 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
     // Transform Lookahead point to Robot Coordinate Frame
     Eigen::Vector3d lookaheadPointRCF(0,0,0);
     lookaheadPointRCF = Eigen::AngleAxisd(-curPose.getYaw(), Eigen::Vector3d::UnitZ()) * (lookaheadPoint.position - curPose.position);
-    std::cout << "X: " << lookaheadPointRCF.x() << " Y: " << lookaheadPointRCF.y() << " Z: " << lookaheadPointRCF.z() << " Lookahead Point, RCF" << std::endl;;
 
-    std::cout << lookaheadPoint.heading*180/M_PI << " Target Heading in WCF" << std::endl;
+    std::cout << "Robot, WCF:    \t ("  << curPose.position.x()
+                                << ", " << curPose.position.y() << ") " << std::endl;
+    std::cout << "Lookahead, WCF:\t ("  << lookaheadPoint.position.x()
+                                << ", " << lookaheadPoint.position.y() << ") " << std::endl;
+    std::cout << "Lookahead, RCF:\t ("  << lookaheadPointRCF.x()
+                                << ", " << lookaheadPointRCF.y() << ") " << std::endl;
+
 
     int sign = ( lookaheadPointRCF.x() < 0 ? -1 : 1);
     if( fabs(lookaheadPointRCF.y()) <=  0.001) {                // Straight line motion if Y below [1mm]
@@ -117,9 +121,6 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         }
         targetHeading = theta/2;
 
-        std::cout << turn_radius      << " Turn radius" << std::endl;
-        std::cout << theta /M_PI*180  << " Theta (deg)" << std::endl;
-
         // Select Ackermann or Point turn + Straigt line
         // Based on which combination is closer to the target orientation
         // Minimizing the misalignment at target waypoint (presumably points towards the next waypoint)
@@ -131,36 +132,42 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         // lies in 1/2 the Ackermann turn angular_velocity
         double distFromLine = distToTarget * (1-cos(targetHeading));
 
-        // Debug
+        /* Debug
         std::cout << err_straightLine /M_PI*180  << " Error if by straight line (deg)" << std::endl;
         std::cout << err_ackermann /M_PI*180  << " Error if by Ackermann (deg)" << std::endl;
         std::cout << distFromLine <<  " Distance from straight line (m)" << std::endl;
+        */
+        targetHeading += curPose.getYaw();
+        std::cout   << "R turn\t =\t "
+                    << turn_radius << "m" << std::endl;
+        std::cout   << "Targ. heading\t =\t "
+                    <<  targetHeading/M_PI*180  << " deg" << std::endl;
 
         // SELECT THE MORE APPROPRIATE MOTION
         if( fabs(turn_radius) <= minTurnRadius            ||
         //  fabs(err_straightLine) < fabs(err_ackermann)  || // Ackermann more preferred
-        fabs(distFromLine)>= maxDisplacementAckermannTurn )
+            fabs(distFromLine)>= maxDisplacementAckermannTurn )
         {
-            std::cout << "Point turn turn case" << std::endl;
+            std::cout << "PT:\t";
             mc.translation = 0;
             mc.rotation = targetHeading > 0 ? rotationalVelocity : -rotationalVelocity;
         }
         else
         {                                                 // ACKERMANN TURN CASE
-            std::cout << "Ackermann turn case" << std::endl;
+            std::cout << "ACK:\t";
             // targetRotation    = theta;
             // targetTranslation = turn_radius*targetRotation;
             mc.translation = sign * translationalVelocity;
             mc.rotation    = mc.translation / turn_radius;
         }
     }
-    std::cout << mc.translation             << " translational vel. (m/s)" << std::endl;
-    std::cout << mc.rotation  / M_PI *180.0 << " rotational vel. (deg/s)" << std::endl;
+    std::cout << "tv = " << mc.translation             << " m/s, ";
+    std::cout << "rv = " << mc.rotation  / M_PI *180.0 << " deg/s" << std::endl;
 }
 
 // Implementation of alignment at final destination
 void WaypointNavigation::getAlignmentCommand(double &tv, double &rv){
-    for (int i = 0; i<3; i++) {
+     for(int i = 0; i<3; i++) {
         //not no sqrt, as both values are sqared, and > is vallid in this case
         if(curPose.cov_position(i,i) > lookaheadPoint.tol_position) {
             std::cout << "Variance of " << i << " is to high " << curPose.cov_position(i,i) << " should be smaller than " << lookaheadPoint.tol_position << std::endl;
@@ -210,6 +217,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
     trajectory = t;
 
     currentSegment = 0;
+    finalPhase     = false;
     // Add current pose at the begining
     if (poseSet){
         w1 << curPose.position(0), curPose.position(1);
@@ -217,7 +225,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
     }
 
     if(!trajectory.empty()) {
-        distanceToNext = new std::vector<double>(trajectory.size()-1);
+        distanceToNext->resize(trajectory.size()-1);
         base::Vector3d wp;
         for (size_t i = 0; i < distanceToNext->size(); i++) {
             wp  = trajectory.at(i+1)->position; // w2 - w1
@@ -244,7 +252,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         } else {
             // Last segment handling, vicinity of final waypoint
             // Executing this code means the robot is within the corridor circle of final waypoint
-            double headingErr;
+            double headingErr, posErr;
             distToNext = (w2-xr).norm(); // Distance to Final
             headingErr  = (trajectory.at(currentSegment)->heading) - curPose.getYaw();
             // TODO Check limit!!!
@@ -252,6 +260,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             // Driving/aligning based on reaching the tolerance of the final radius
             if( distToNext <= trajectory.at(currentSegment)->tol_position ){
                 // Position for alignment was reached
+                finalPhase = true;
                 if( fabs(headingErr) < trajectory.at(currentSegment)->tol_heading){
                     setNavigationState(TARGET_REACHED);
                 } else {
@@ -259,8 +268,9 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                     targetHeading = trajectory.at(currentSegment)->heading;
                 }
             } else {
+                finalPhase = false;
                 targetHeading = atan2(w2(1)-xr(1),w2(0)-xr(0));
-                double posErr = distToNext * sin(targetHeading-curPose.getYaw());
+                posErr = distToNext * sin(targetHeading-curPose.getYaw());
                 if ( fabs(posErr) > trajectory.at(currentSegment)->tol_position ){
                     // This assumes straigt line motion, not Ackermann // TODO
                     setNavigationState(ALIGNING);
@@ -268,25 +278,30 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                     setNavigationState(DRIVING);
                 }
             }
+            std::cout << "Final phase:" << std::endl <<
+            "\t Dist remng.   \t" << distToNext << " m" << std::endl <<
+            "\t Heading error \t" << headingErr*180/M_PI<<
+            "/" << trajectory.at(currentSegment)->tol_heading*180/M_PI << " deg" << std::endl <<
+            "\t Pos. err. est.\t" << posErr <<" m " <<  std::endl;
             break;
         }
     }
-    std::cout << "Current segment: " << currentSegment << std::endl;
 
     // 2) Get intersection point with the Path (should also return distance from the segment)
     base::Vector2d xi = getClosestPointOnPath();
-    std::cout << "Closest point: (" << xi.x() << ", "
-    << xi.y() << ") "
-    << std::endl;
-
+     std::cout << "Closest point: (" << xi.x() << ", "
+     << xi.y() << ") "
+     << std::endl;
+     std::cout << "Dist to next: " << distToNext << std::endl;
     // 3) Calculate the distance from the nominal trajectory
     distanceToPath = (xr-xi).norm();
-    std::cout << "Distance from nominal: " << distanceToPath << std::endl;
+
 
 
     NavigationState currentState = getNavigationState();
-    std::cout << "Nav. state: " << currentState << std::endl;
-
+    std::cout << "Current segment:\t"   << currentSegment   << std::endl;
+    std::cout << "Nav. state:\t\t"      << currentState     << std::endl;
+    std::cout << "Dist. from nominal:\t" << distanceToPath  << std::endl;
     /* -------------------------------------------
     * STATEMACHINE FOR EXECUTION OF TRACKING MODES
     ------------------------------------------- */
@@ -305,6 +320,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 
             // i) Get the look ahead point segment
             base::Vector2d lineVector, lookaheadPoint2D;
+            std::cout << "Distance: "<< distance << "/" << lookaheadDistance << std::endl;
             if (distance > lookaheadDistance) // Lookahead within same seg.
             {
                 // ii) Get the look ahead point
@@ -327,7 +343,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                     // End of trajectory was reached          // setNavigationState(ALIGNING);
                     // Will not execute the ALIGNING case within this update?
                     //         return false;
-                    std::cout << "W.N.: Extrapolating the last segment." << std::endl;
+                    //std::cout << "W.N.: Extrapolating the last segment." << std::endl;
                 }
                 // ii) Get the look ahead point
                 setSegmentWaypoint(l1, lookaheadSegment-1);
@@ -341,9 +357,6 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             lookaheadPoint.heading  = atan2(lineVector(1),lineVector(0));
             lookaheadPoint.tol_position = 0.1;
             targetSet = true;
-            std::cout << "Lookahead point: (" << lookaheadPoint2D.x() << ", "
-            << lookaheadPoint2D.y() << ") "
-            << std::endl;
             // iii) Get motion command to the lookahead point
             getMovementCommand(mc);
             if ( fabs(mc.translation) < 1e-6){
@@ -355,56 +368,85 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         case ALIGNING:
         {
             mc.translation = 0; // Ensure
-            double headingErr;
+            double headingErr, disalignmentTolerance;
+            disalignmentTolerance = finalPhase ? trajectory.at(currentSegment)->tol_heading : maxDisalignment;
             headingErr  = targetHeading - curPose.getYaw();
-            if ( headingErr > maxDisalignment){
+            if ( headingErr > disalignmentTolerance){
                 mc.rotation =  rotationalVelocity;
-            } else if ( headingErr < -maxDisalignment){
+            } else if ( headingErr < -disalignmentTolerance){
                 mc.rotation = -rotationalVelocity;
             } else {
                 mc.rotation = 0;
                 setNavigationState(DRIVING);
             }
-            std::cout   << "Aligning " << 180.0/M_PI*curPose.getYaw()<<
-                " ==> "        <<          180.0/M_PI*targetHeading  <<
-                ", using rv = "<<          180.0/M_PI*mc.rotation    <<
+            std::cout   << "Aligning:\t " << 180.0/M_PI*curPose.getYaw()<<
+                " to " <<          180.0/M_PI*targetHeading  <<
+                "+-"   << 180.0/M_PI*disalignmentTolerance << " deg" <<
+                ",\t rv = "<<          180.0/M_PI*mc.rotation    <<
                 "deg/s."      << std::endl;
             break;
         } // --- end of ALIGNING ---
         case OUT_OF_BOUNDARIES:{
             mc.translation = 0;
             mc.rotation    = 0;
-            if ( distanceToPath < corridor ){
-                setNavigationState(DRIVING);
-            } else {
-                // try matching the robot position with the PREV segment
-                double progress, distAlong, distPerpendicular;
-                if(currentSegment > 0){
-                    getProgressOnSegment(currentSegment-1, progress, distAlong, distPerpendicular);
-                    if (	fabs(distAlong)		 < corridor &&
+            double progress, distAlong, distPerpendicular;
+            // Try the current segment first
+            if(currentSegment > 0){
+                getProgressOnSegment(currentSegment, progress, distAlong, distPerpendicular);
+                if( progress > 0 &&
+                    fabs(distAlong)		     < corridor &&
                     fabs(distPerpendicular)	 < corridor){
-                        // Robot is in the "Bounding box: of the previous segment
-                        std::cout << "Resolved, robot was in previous segment with progres of: "
-                        << progress*100 << "\%, segment decremented" << std::endl;
-                        currentSegment--;
-                        break;
-                    } else {
-                        std::cout << "Robot not found in the previous segments corridor" << std::endl;
-                    }
+                    std::cout << "Resolved, robot was in the current segment with progres of: "
+                    << progress*100 << "\%" << std::endl;
+                   setNavigationState(DRIVING);
+                   break;
+               } else {
+                   std::cout << "Robot not found in the current segment corridor" << std::endl;
+                   std::cout << "\t Progress (%): \t"<< progress*100 << std::endl;
+                   std::cout << "\t Longitudal err (m): \t"<< distAlong << std::endl;
+                   std::cout << "\t Lateral error (m): \t" << distPerpendicular << std::endl;
+               }
+            }
+           // Try the previous or next segment
+           if(currentSegment > 1){
+               getProgressOnSegment(currentSegment-1, progress, distAlong, distPerpendicular);
+               if (	fabs(distAlong)		 < corridor &&
+                    fabs(distPerpendicular)	 < corridor){
+                    // Robot is in the "Bounding box: of the previous segment
+                    std::cout << "Resolved, robot was in previous segment with progres of: "
+                    << progress*100 << "\%, segment decremented" << std::endl;
+                    currentSegment--;
+                    setSegmentWaypoint(w1, currentSegment-1);
+                    setSegmentWaypoint(w2, currentSegment);
+                    std:: cout << w1 << std::endl << w2 << std::endl;
+                    setNavigationState(DRIVING);
+                    break;
+                } else {
+                    std::cout << "Robot not found in the previous segments corridor" << std::endl;
+                    std::cout << "\t Progress (%): \t"<< progress*100 << std::endl;
+                    std::cout << "\t Longitudal err (m): \t"<< distAlong << std::endl;
+                    std::cout << "\t Lateral error (m): \t" << distPerpendicular << std::endl;
                 }
-                // try matching the robot position with the NEXT segment
-                if(currentSegment < trajectory.size()-1){
-                    getProgressOnSegment(currentSegment+1, progress, distAlong, distPerpendicular);
-                    if (	fabs(distAlong)		 < corridor &&
-                    fabs(distPerpendicular)	 < corridor){
-                        // Robot is in the "Bounding box: of the next segment
-                        std::cout << "Resolved, robot was in next segment with progres of: "
-                        << progress*100 << "\%, segment incremented" << std::endl;
-                        currentSegment++;
-                        break;
-                    } else {
-                        std::cout << "Robot not found in the next segments corridor" << std::endl;
-                    }
+            }
+            // try matching the robot position with the NEXT segment
+            if(currentSegment < trajectory.size()-1){
+                getProgressOnSegment(currentSegment+1, progress, distAlong, distPerpendicular);
+                if (	fabs(distAlong)		 < corridor &&
+                            fabs(distPerpendicular)	 < corridor){
+                    // Robot is in the "Bounding box: of the next segment
+                    std::cout << "Resolved, robot was in next segment with progres of: "
+                    << progress*100 << "\%, segment incremented" << std::endl;
+                    currentSegment++;
+                    setSegmentWaypoint(w1, currentSegment-1);
+                    setSegmentWaypoint(w2, currentSegment);
+                    std:: cout << w1 << std::endl << w2 << std::endl;
+                    setNavigationState(DRIVING);
+                    break;
+                } else {
+                    std::cout << "Robot not found in the next segments corridor" << std::endl;
+                    std::cout << "\t Progress (%): \t"<< progress*100 << std::endl;
+                    std::cout << "\t Longitudal err (m): \t"<< distAlong << std::endl;
+                    std::cout << "\t Lateral error (m): \t" << distPerpendicular << std::endl;
                 }
             }
             break;
@@ -504,17 +546,19 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
             // Using wStart and wEnd instead of w1, w2
             // 1)
             base::Vector2d segVector, wStart, wEnd;
-            setSegmentWaypoint(wStart, segmentNumber);
-            setSegmentWaypoint(wEnd  , segmentNumber+1);
+            setSegmentWaypoint(wStart, segmentNumber-1);
+            setSegmentWaypoint(wEnd  , segmentNumber);
             segVector = wEnd-wStart;
 
             // 2)
             double determinant = segVector.dot(segVector);
             base::Matrix2d inverseL;
             inverseL  << segVector(1), -segVector(0),
-            segVector(0),  segVector(1);
+                         segVector(0),  segVector(1);
             inverseL /= determinant;
+
             base::Vector2d xi = inverseL*(xr-wStart);
+
             // 3)
             progress =  xi(1);
             xi = wStart + progress*segVector;
@@ -527,7 +571,23 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
             } else{
                 distAlong = 0;
             }
+            /* // DEBUG OUTPUTS
+            std::cout << "seg vector = (" << segVector(0) <<
+            ", " << segVector(1) << ")" << std::endl;
+            std::cout << "xr = (" << xr(0) <<
+            ", " << xr(1) << ")" << std::endl;
+             std::cout << "wStart = (" << wStart(0) <<
+            ", " << wStart(1) << ")" << std::endl;
+            std::cout << "Determinant: " << determinant << std::endl;
+            std::cout << "solution = (" << xi(0) <<
+            ", " << xi(1) << ")" << std::endl;
+            std::cout << inverseL << std::endl;
+            */
             return true;
+        }
+
+        void WaypointNavigation::setCurrentSegment(int segmentNumber){
+            currentSegment = segmentNumber;
         }
 
 }

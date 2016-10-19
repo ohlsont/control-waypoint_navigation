@@ -1,4 +1,4 @@
-#include "WaypointNavigationTest.hpp"
+    #include "WaypointNavigationTest.hpp"
 #include "WaypointNavigation.hpp"
 #include <Eigen/Geometry>
 #include <iostream>
@@ -39,7 +39,7 @@ int main() {
 
     std::cout << "Test Trajectory" << std::endl;
     robotPose.orientation
-      = Eigen::Quaterniond( Eigen::AngleAxisd(5.0/180.0*M_PI, Eigen::Vector3d::UnitZ()));
+      = Eigen::Quaterniond( Eigen::AngleAxisd(10.0/180.0*M_PI, Eigen::Vector3d::UnitZ()));
     pathTracker.setPose(robotPose);
 
     uint N = 3;
@@ -49,8 +49,9 @@ int main() {
     {
 
         trajectory.at(i).position = Eigen::Vector3d(i+1.0,.5,0);
-        trajectory.at(i).heading  = 0.0/180.0*M_PI;
+        trajectory.at(i).heading      = 15.0/180.0*M_PI;
         trajectory.at(i).tol_position = 0.1;
+        trajectory.at(i).tol_heading  = 5.0 /180*M_PI;
         ptrajectory.at(i) = &trajectory.at(i);
         //trajectory.push_back(lpoint);
     }
@@ -64,31 +65,32 @@ int main() {
               << robotPose.position.z() <<")"
               << "yaw = " <<  robotPose.getYaw()*180/M_PI << "deg." << std::endl;
 
-     while(pathTracker.getNavigationState() == DRIVING ){
+     while(pathTracker.getNavigationState() != TARGET_REACHED ){
       // = = =  Get motion commands  = = =
       pathTracker.update(mc);
+      /*
       std::cout << "tv = " << mc.translation;
       std::cout << ", rv = " << mc.rotation << std::endl;
-
+    */
       // = = =  Simulate motion commands  = = =
-      double dt = 1.0;
+      double dt = 0.1;
       double yaw = robotPose.getYaw();
       Eigen::AngleAxisd toWCF, robotRot;
       toWCF = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ());
 
 
-      if ( fabs(mc.translation) < 0.001 ){
+      if ( fabs(mc.translation) < 0.000001 ){
         // Point turn
-        std::cout << "PT of " << (mc.rotation*dt)*180/M_PI << "deg" << std::endl;
+        //std::cout << "PT of " << (mc.rotation*dt)*180/M_PI << "deg" << std::endl;
         robotRot = AngleAxisd(mc.rotation*dt, Eigen::Vector3d::UnitZ());
         robotPose.orientation = Eigen::Quaterniond(robotRot) * robotPose.orientation;
-      } else if ( fabs(mc.rotation) < 0.001){
+      } else if ( fabs(mc.rotation) < 0.000001){
         // Straight line
-        std::cout << "SL" << std::endl;
+        //std::cout << "SL" << std::endl;
         robotPose.position += (mc.translation*dt)*(toWCF*Eigen::Vector3d::UnitX());
       } else {
         // Ackermann
-        std::cout << "ACK" << std::endl;
+        //  std::cout << "ACK" << std::endl;
         Eigen::Vector3d turnCenter;
         turnCenter << 0.0, mc.translation/mc.rotation, 0.0;
         turnCenter = toWCF*(turnCenter) + robotPose.position;
@@ -100,10 +102,25 @@ int main() {
       std::cout << "Robot = (" << robotPose.position.x() <<","
                 << robotPose.position.y() <<","
                 << robotPose.position.z() <<"), "
-                << "yaw = "<<  robotPose.getYaw()*180/M_PI << "deg."
+                << "yaw = "<<  robotPose.getYaw()*180/M_PI << " deg."
                 << std::endl << std::endl;
       pathTracker.setPose(robotPose);
     }
+
+  
+    robotPose.position = Eigen::Vector3d(1.5, 0.0, 0);
+    pathTracker.setPose(robotPose);
+    pathTracker.setNavigationState(OUT_OF_BOUNDARIES);
+    // Confuse the segment ;)
+    pathTracker.setCurrentSegment(1);
+    std::cout<< "-------------------------------------" << std::endl
+             << "Lost segment test (set to previous by mistake)" << std::endl
+             << std::endl;
+    for (int i = 0; i < 3; i++){
+        pathTracker.update(mc);
+    }
+}
+
 /*
     double tv, rv;
     std::cout << "----- Orientation tests" << std::endl << std::endl;
@@ -330,4 +347,3 @@ int main() {
     assert((fabs(tv) < 0.001) && ((rv > 0.3) || (rv < -0.3)));
     std::cout << "Test 8 PASSED" << std::endl << std::endl;
 */
-}
