@@ -12,7 +12,8 @@ enum NavigationState{
       DRIVING=0,
       ALIGNING,
       TARGET_REACHED,
-      OUT_OF_BOUNDARIES
+      OUT_OF_BOUNDARIES,
+      NO_TRAJECTORY
 };
 class WaypointNavigation
 {
@@ -28,7 +29,7 @@ class WaypointNavigation
   	/**
   	* Set current orientation and position
   	*/
-        bool setPose(base::samples::RigidBodyState &pose);
+    bool setPose(base::samples::RigidBodyState &pose);
 
   	/**
   	* Sets the trajecory the robot should follow
@@ -58,12 +59,6 @@ class WaypointNavigation
   	*/
   	void getMovementCommand (base::commands::Motion2D& mc);
 
-    	/**
-  	* Calculates a motion command
-	* to  align the robot with the heading of the final pose
-  	*/
-  	void getAlignmentCommand(double &tv, double &rv);
-
 	bool getProgressOnSegment(int segmentNumber,
 			 double& progress, double& distAlong, double& distPerpend);
         double getLookaheadDistance();
@@ -77,7 +72,7 @@ class WaypointNavigation
   	bool targetSet;
   	bool poseSet;
   	bool newWaypoint;
-        bool finalPhase;
+    bool finalPhase;
 
   	double minTurnRadius;        	// Minimum turn radius [m]
     double maxDisplacementAckermannTurn;
@@ -95,9 +90,9 @@ class WaypointNavigation
   	std::vector<double> *distanceToNext;
 	std::vector<base::Waypoint *> trajectory;
   	base::Waypoint lookaheadPoint;
-    	size_t currentSegment;
+    size_t currentSegment;
 
-    	base::Vector2d w1, w2, l1, l2, xr;
+    base::Vector2d w1, w2, l1, l2, xr;
 
 	/* -------------------------------
 	*  PRIVATE FUNCTIONS
@@ -106,13 +101,17 @@ class WaypointNavigation
 	/**
 	* Helper function for setting values of Vector2d with X, Y of a trajectory waypoint
 	*/
-    	bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
+    bool setSegmentWaypoint(base::Vector2d& waypoint, int indexSegment);
 
 	/**
 	* Helper function for finding the closes point on the path segment
 	* from the current position of the robot
 	*/
-    	base::Vector2d getClosestPointOnPath();
+    base::Vector2d getClosestPointOnPath();
+	
+	void initilalizeCurrentSegment();
+
+	bool isInsideBoundaries(double& distAlong, double& distPerpend);
 };
 }
 #endif
