@@ -175,7 +175,6 @@ Sets the new trajectory and calculates the distances between waypoints
 void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 {
     // Delete old trajectory
-     targetSet = false;
     for(std::vector<base::Waypoint *>::iterator it = trajectory.begin(); it != trajectory.end(); it++)
     {
         delete *it;
@@ -183,10 +182,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
     trajectory.clear();
     trajectory = t;
     targetSet 	   = false;
-    finalPhase     = false;
     
-    
-
     if(!trajectory.empty()) {
     	// Add current pose at the begining
 	    if (poseSet){
@@ -220,34 +216,35 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             setSegmentWaypoint(w2, currentSegment+1);
             currentSegment++;
             distToNext = (w2-xr).norm();
+            finalPhase = false;
         } else {
             // LAST SEGMENT HANDLING, vicinity of final waypoint
             // Executing this code means the robot is within the corridor circle of final waypoint
             double headingErr, posErr;
             distToNext = (w2-xr).norm(); // Distance to Final
-            // Final heading - current heading
+            //    error = Final heading - current heading; both angles in range (-pi; pi)
             headingErr  = (trajectory.back()->heading) - curPose.getYaw();
-            // TODO Check limit!!!
+            
 
-            // Driving/aligning based on reaching the tolerance of the final radius
-            if( distToNext <= trajectory.back()->tol_position ){
+            // Driving/aligning based on reaching the tolerance (the final inner radius)
+            if( finalPhase || distToNext <= trajectory.back()->tol_position ){
                 // Position for alignment was reached
                 finalPhase = true;
                 if( fabs(headingErr) < trajectory.back()->tol_heading){
                     setNavigationState(TARGET_REACHED);
                 } else {
-                    setNavigationState(ALIGNING);
+                    setNavigationState(ALIGNING); // Align to target heading
                     targetHeading = trajectory.back()->heading;
                 }
             } else {
-                finalPhase = false;
+                //finalPhase = false;
                 Eigen::Vector3d xf;
                 xf = trajectory.back()->position;
-                targetHeading = atan2( xf.y()-xr.y(), xf.x()-xr.x());
+                targetHeading = atan2( xf.y()-xr.y(), xf.x()-xr.x());       // Heading to target
                 posErr = distToNext * sin(targetHeading-curPose.getYaw());
                 if ( fabs(posErr) > trajectory.at(currentSegment)->tol_position ){
                     // This assumes straight line motion, not Ackermann, but approx valid
-                    setNavigationState(ALIGNING);
+                    setNavigationState(ALIGNING); // with targetHeading = heading to target
                 } else {
                     setNavigationState(DRIVING);
                 }
@@ -447,6 +444,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         }
         case TARGET_REACHED:
             std::cout << "Target Reached." 		<< std::endl;
+            finalPhase = false;
             break;
         case NO_TRAJECTORY:
             std::cout << "Invalid trajectory." 	<< std::endl;
