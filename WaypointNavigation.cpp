@@ -216,7 +216,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             setSegmentWaypoint(w2, currentSegment+1);
             currentSegment++;
             distToNext = (w2-xr).norm();
-            finalPhase = false;
+           // finalPhase = false;
         } else {
             // LAST SEGMENT HANDLING, vicinity of final waypoint
             // Executing this code means the robot is within the corridor circle of final waypoint
@@ -257,7 +257,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             break;
         }
     }
-
+    finalPhase &= (currentSegment == trajectory.size()-1); 
     // 2) Get intersection point with the Path (should also return distance from the segment)
     base::Vector2d xi = getClosestPointOnPath();
     /*
@@ -444,7 +444,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         }
         case TARGET_REACHED:
             std::cout << "Target Reached." 		<< std::endl;
-            finalPhase = false;
+            //finalPhase = false;
             break;
         case NO_TRAJECTORY:
             std::cout << "Invalid trajectory." 	<< std::endl;
