@@ -109,9 +109,11 @@ class WaypointNavigation
 	*/
     base::Vector2d getClosestPointOnPath();
 	
-	void initilalizeCurrentSegment();
+    void initilalizeCurrentSegment();
 
-	bool isInsideBoundaries(double& distAlong, double& distPerpend);
+    bool isInsideBoundaries(double& distAlong, double& distPerpend);
+    inline void wrapAngle(double& angle);
+
 };
 }
 #endif

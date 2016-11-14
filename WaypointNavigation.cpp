@@ -115,11 +115,7 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         /(2*lookaheadPointRCF.y());
 
         double theta = atan2(lookaheadPointRCF.y(),lookaheadPointRCF.x())*2; // In Robot Coordinate Frame
-        if (theta > M_PI){
-            theta -= 2*M_PI;
-        } else if (theta < -M_PI) {
-            theta += 2*M_PI;
-        }
+        wrapAngle(theta);   
         targetHeading = theta/2;
 
         // Select Ackermann or Point turn + Straigt line
@@ -137,14 +133,12 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         std::cout << err_straightLine /M_PI*180  << " Error if by straight line (deg)" << std::endl;
         std::cout << err_ackermann /M_PI*180  << " Error if by Ackermann (deg)" << std::endl;
         std::cout << distFromLine <<  " Distance from straight line (m)" << std::endl;
-        */
-        targetHeading += curPose.getYaw();
-        /*
         std::cout   << "R turn\t =\t "
                     << turn_radius << "m" << std::endl;
         std::cout   << "Targ. heading\t =\t "
                     <<  targetHeading/M_PI*180  << " deg" << std::endl;
 		*/
+
         // SELECT THE MORE APPROPRIATE MOTION
         if( fabs(turn_radius) <= minTurnRadius            ||
         //  fabs(err_straightLine) < fabs(err_ackermann)  || // Ackermann more preferred
@@ -162,6 +156,9 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
             mc.translation = sign * translationalVelocity;
             mc.rotation    = mc.translation / turn_radius;
         }
+        // Transform target heading to WCF
+        targetHeading += curPose.getYaw();
+        wrapAngle(targetHeading);
     }
     /*
     std::cout << "tv = " << mc.translation             << " m/s, ";
@@ -224,7 +221,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             distToNext = (w2-xr).norm(); // Distance to Final
             //    error = Final heading - current heading; both angles in range (-pi; pi)
             headingErr  = (trajectory.back()->heading) - curPose.getYaw();
-            
+            wrapAngle(headingErr);
 
             // Driving/aligning based on reaching the tolerance (the final inner radius)
             if( finalPhase || distToNext <= trajectory.back()->tol_position ){
@@ -235,6 +232,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                 } else {
                     setNavigationState(ALIGNING); // Align to target heading
                     targetHeading = trajectory.back()->heading;
+                    wrapAngle(targetHeading);
                 }
             } else {
                 //finalPhase = false;
@@ -345,7 +343,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             double headingErr, disalignmentTolerance;
             disalignmentTolerance = finalPhase ? trajectory.back()->tol_heading : maxDisalignment;
             headingErr  = targetHeading - curPose.getYaw();
-
+            wrapAngle(headingErr);
             if ( headingErr > disalignmentTolerance*2){
                 mc.rotation     =  rotationalVelocity;
             } else if ( headingErr < - disalignmentTolerance*2){
@@ -621,4 +619,14 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
         	return  fabs(distAlong)		< corridor &&
                     fabs(distPerpend)	< corridor;
         }
+        
+        inline void WaypointNavigation::wrapAngle(double& angle){
+            if ( angle > M_PI){
+                angle -= 2*M_PI;
+            } else if (angle < -M_PI){
+                angle += 2*M_PI; 
+            }
+        }
+
+
 }
