@@ -213,7 +213,6 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             setSegmentWaypoint(w2, currentSegment+1);
             currentSegment++;
             distToNext = (w2-xr).norm();
-           // finalPhase = false;
         } else {
             // LAST SEGMENT HANDLING, vicinity of final waypoint
             // Executing this code means the robot is within the corridor circle of final waypoint
@@ -240,18 +239,18 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                 xf = trajectory.back()->position;
                 targetHeading = atan2( xf.y()-xr.y(), xf.x()-xr.x());       // Heading to target
                 posErr = distToNext * sin(targetHeading-curPose.getYaw());
-                if ( fabs(posErr) > trajectory.at(currentSegment)->tol_position ){
+                if ( fabs(posErr) > trajectory.back()->tol_position ){
                     // This assumes straight line motion, not Ackermann, but approx valid
                     setNavigationState(ALIGNING); // with targetHeading = heading to target
                 } else {
                     setNavigationState(DRIVING);
                 }
             }
-            std::cout << "Final phase:" << std::endl <<
+            std::cout << "Final phase:" << finalPhase << std::endl <<
             "\t Dist remng.   \t" << distToNext << " m" << std::endl <<
             "\t Heading error \t" << headingErr*180/M_PI<<
-            "/" << trajectory.at(currentSegment)->tol_heading*180/M_PI << " deg" << std::endl <<
-            "\t Pos. err. est.\t" << posErr <<" m " <<  std::endl;
+            "/" << trajectory.back()->tol_heading*180/M_PI << " deg" << std::endl <<
+            "\t Pos. err. est.\t" << posErr << "/" << trajectory.back()->tol_position <<"m " <<  std::endl;
             break;
         }
     }
