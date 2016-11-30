@@ -7,10 +7,8 @@ WaypointNavigation::WaypointNavigation()
 {
     mNavigationState = TARGET_REACHED;
     // Booleans
-    aligning    = false;
     targetSet   = false;
     poseSet     = false;
-    newWaypoint = false;
     finalPhase  = false;
 
     // Ackermann turn parameters
@@ -39,6 +37,9 @@ void  WaypointNavigation::setNavigationState(NavigationState state){
 double WaypointNavigation::getLookaheadDistance(){
     return lookaheadDistance;
 }
+// setPose:
+// sets the pose with a validity check (to avoid NaNs from vicon)
+// If invalid pose is received, it is discarded and false is returned
 bool WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
 {
     if( isnan(pose.position(0)) || isnan(pose.position(1)) ){
@@ -60,17 +61,15 @@ bool WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
 void WaypointNavigation::setLookaheadPoint(base::Waypoint& waypoint)
 {
     targetSet = true;
-    aligning = false;
     lookaheadPoint = waypoint;
-    newWaypoint = true;
 }
 
-// Implementation of "pure pursuit" path tracking movement command
+// Get the movement command from current pose to the current lookahead point
 void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
 {
     //check if std deviation is bigger than the specified std deviation for the current target pose
     for (int i = 0; i<3; i++) {
-        //not no sqrt, as both values are sqared, and > is vallid in this case
+        // no sqrt, as both values are sqared, and > is vallid in this case
         if(curPose.cov_position(i,i) > lookaheadPoint.tol_position) {
             std::cout << "Variance of " << i << " is to high " << curPose.cov_position(i,i)
             << " should be smaller than " << lookaheadPoint.tol_position << std::endl;
@@ -87,7 +86,7 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         return;
     }
 
-    // Vector to target position
+    // Vector from current to target position
     Eigen::Vector3d driveVector = lookaheadPoint.position - curPose.position;
     driveVector.z() = 0; // Do not care about robot's Z displacement, navigation in 2D plane
     double distToTarget = driveVector.norm();
@@ -96,7 +95,7 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
     Eigen::Vector3d lookaheadPointRCF(0,0,0);
     lookaheadPointRCF = Eigen::AngleAxisd(-curPose.getYaw(), Eigen::Vector3d::UnitZ()) * (lookaheadPoint.position - curPose.position);
 
-    /*
+    /* Debug
     std::cout << "Robot, WCF:    \t ("  << curPose.position.x()
                                 << ", " << curPose.position.y() << ") " << std::endl;
     std::cout << "Lookahead, WCF:\t ("  << lookaheadPoint.position.x()
@@ -106,7 +105,7 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
 	*/
 
     int sign = ( lookaheadPointRCF.x() < 0 ? -1 : 1);
-    if( fabs(lookaheadPointRCF.y()) <=  0.001) {                // Straight line motion if Y below [1mm]
+    if( fabs(lookaheadPointRCF.y()) <=  0.001) {                // Straight line motion if dY below [1mm]
         //std::cout << "Straight line case" << std::endl;
         mc.translation = sign * translationalVelocity;
         mc.rotation = 0;
@@ -114,16 +113,19 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         double turn_radius = (lookaheadPointRCF.x()*lookaheadPointRCF.x() + lookaheadPointRCF.y()*lookaheadPointRCF.y())
         /(2*lookaheadPointRCF.y());
 
+        // Heading of the robot at the end of the turn to the lookahead point
         double theta = atan2(lookaheadPointRCF.y(),lookaheadPointRCF.x())*2; // In Robot Coordinate Frame
         wrapAngle(theta);   
+
+        // Angle of the turn rotation, also heading difference from the current heading to the lookahead direction
         targetHeading = theta/2;
 
-        // Select Ackermann or Point turn + Straigt line
+        // Select Ackermann or Point turn + Straigt line (THIS IS CURRENTLY UNUSED)
         // Based on which combination is closer to the target orientation
         // Minimizing the misalignment at target waypoint (presumably points towards the next waypoint)
-        double err_straightLine = - (lookaheadPoint.heading - curPose.getYaw());// Target heading in Robot Coordinate frame
-        double err_ackermann    = theta +  err_straightLine;               //  By Ackermann turn - Target heading
-        err_straightLine       += targetHeading;                          //   By Straight line  - Target heading
+        // double err_straightLine = - (lookaheadPoint.heading - curPose.getYaw());// Target heading in Robot Coordinate frame
+        // double err_ackermann    = theta +  err_straightLine;               //  By Ackermann turn - Target heading
+        // err_straightLine       += targetHeading;                          //   By Straight line  - Target heading
 
         // Maximum distance from the straight line to the waypoint
         // lies in 1/2 the Ackermann turn angular_velocity
@@ -141,7 +143,6 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
 
         // SELECT THE MORE APPROPRIATE MOTION
         if( fabs(turn_radius) <= minTurnRadius            ||
-        //  fabs(err_straightLine) < fabs(err_ackermann)  || // Ackermann more preferred
             fabs(distFromLine)>= maxDisplacementAckermannTurn )
         {
             //std::cout << "PT:\t";
@@ -151,8 +152,6 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         else
         {                                                 // ACKERMANN TURN CASE
             //std::cout << "ACK:\t";
-            // targetRotation    = theta;
-            // targetTranslation = turn_radius*targetRotation;
             mc.translation = sign * translationalVelocity;
             mc.rotation    = mc.translation / turn_radius;
         }
@@ -160,14 +159,10 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         targetHeading += curPose.getYaw();
         wrapAngle(targetHeading);
     }
-    /*
-    std::cout << "tv = " << mc.translation             << " m/s, ";
-    std::cout << "rv = " << mc.rotation  / M_PI *180.0 << " deg/s" << std::endl;
-    */
 }
 
 /*
-Sets the new trajectory and calculates the distances between waypoints
+		Sets the new trajectory and calculates the distances between consecutivewaypoints
 */
 void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 {
@@ -203,9 +198,10 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
     
 }
 
+// MAIN PATH FOLLOWING UPDATE FUNCTION CALLED FROM THE COMPONENT UPDATE HOOK
 bool  WaypointNavigation::update(base::commands::Motion2D& mc){
     // 1) Update the current SEGMENT
-    // Select the segment such that robot is not within immediate reach of the 2nd Waypoint
+    // Select the segment such that robot is not within the immediate reach of the 2nd Waypoint
     double distToNext = (w2-xr).norm();
     while ( distToNext <= corridor ){
         if( currentSegment < trajectory.size()-1){
@@ -254,7 +250,9 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             break;
         }
     }
-    finalPhase &= (currentSegment == trajectory.size()-1); 
+    finalPhase &= (currentSegment == trajectory.size()-1);
+
+
     // 2) Get intersection point with the Path (should also return distance from the segment)
     base::Vector2d xi = getClosestPointOnPath();
     /*
@@ -262,18 +260,18 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
     	<< xi.x() << ", " << xi.y() << ") "		<< std::endl;
     std::cout << "Dist to next: " << distToNext << std::endl;
     */
+
     // 3) Calculate the distance from the nominal trajectory
     distanceToPath = (xr-xi).norm();
 
-    NavigationState currentState = getNavigationState();
     /*
     std::cout << "Current segment:\t"   << currentSegment   << std::endl;
-    std::cout << "Nav. state:\t\t"      << currentState     << std::endl;
     std::cout << "Dist. from nominal:\t" << distanceToPath  << std::endl;
 	*/
 
+	NavigationState currentState = getNavigationState();
     /* -------------------------------------------
-    * STATEMACHINE FOR EXECUTION OF TRACKING MODES
+    * STATEMACHINE FOR EXECUTION OF DIFFERENT PATH FOLLOWING MODES
     ------------------------------------------- */
     switch (currentState) {
         case (NavigationState)DRIVING:
@@ -293,13 +291,13 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             std::cout << "Distance: "<< distance << "/" << lookaheadDistance << std::endl;
             if (distance > lookaheadDistance) // Lookahead within same seg.
             {
-                // ii) Get the look ahead point
+                // ii) Get the look ahead point in the current segment
                 lineVector = w2-w1;
                 lineVector.normalize();
                 lookaheadPoint2D = xi + lineVector*(lookaheadDistance-distanceToPath);
             }
             else
-            { // Find the right segment
+            { // Find the right segment for the lookahead point
                 size_t lookaheadSegment;
                 lookaheadSegment = currentSegment;
                 for ( ;	lookaheadSegment < distanceToNext->size() &&
@@ -309,14 +307,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                     distance +=  distanceToNext->at(lookaheadSegment);
                 }
 
-                // ... will extrapolate the segment instead // TODO remove
-                if (distance <= lookaheadDistance){
-                    // End of trajectory was reached          // setNavigationState(ALIGNING);
-                    // Will not execute the ALIGNING case within this update?
-                    //         return false;
-                    //std::cout << "W.N.: Extrapolating the last segment." << std::endl;
-                }
-                // ii) Get the look ahead point
+                // ii) Get the look ahead point in the lookahead segment
                 setSegmentWaypoint(l1, lookaheadSegment-1);
                 setSegmentWaypoint(l2, lookaheadSegment);
                 lineVector = l2-l1;
@@ -328,6 +319,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             lookaheadPoint.heading  = atan2(lineVector(1),lineVector(0));
             lookaheadPoint.tol_position = 0.1;
             targetSet = true;
+            
             // iii) Get motion command to the lookahead point
             getMovementCommand(mc);
             if ( fabs(mc.translation) < 1e-6){
