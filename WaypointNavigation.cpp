@@ -114,12 +114,19 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         /(2*lookaheadPointRCF.y());
 
         // Heading of the robot at the end of the turn to the lookahead point
-        double theta = atan2(lookaheadPointRCF.y(),lookaheadPointRCF.x())*2; // In Robot Coordinate Frame
-        wrapAngle(theta);   
+        double theta = atan2(lookaheadPointRCF.y(),lookaheadPointRCF.x())*2; 
+        // In Robot Coordinate Frame ... -360 to +360 deg
 
-        // Angle of the turn rotation, also heading difference from the current heading to the lookahead direction
-        targetHeading = theta/2;
+        wrapAngle(theta); //maps -360 to +360 deg --> 0 to 180, -180 to 180, -180 to 0
+        // Angle of the turn rotation,
+        // heading difference from the current heading to the lookahead direction
+        targetHeading = theta/2; // In range of -90 to +90
 
+        if (!backwardPerimtted && sign<0){
+            // Robot not allowed to go backwards
+            targetHeading += M_PI;
+            wrapAngle(targetHeading);
+        }
         // Select Ackermann or Point turn + Straigt line (THIS IS CURRENTLY UNUSED)
         // Based on which combination is closer to the target orientation
         // Minimizing the misalignment at target waypoint (presumably points towards the next waypoint)
@@ -480,34 +487,33 @@ const base::Waypoint* WaypointNavigation::getLookaheadPoint(){
     return &lookaheadPoint;
 }
 
-//return true;
-/*
-Eigen::Quaterniond oriDiffToTarget = curPose.orientation.inverse() * Eigen::Quaterniond(Eigen::AngleAxisd(targetPose.heading, Eigen::Vector3d::UnitZ()));
-Eigen::Vector3d t = oriDiffToTarget * Eigen::Vector3d(1.0,0,0);
-double anglediff = atan2(t.y(), t.x());
-
-if(fabs(anglediff) < maxDisalignment)
-return true;
-
-return false;
-*/
-
 bool WaypointNavigation::configure(double minR,	double tv, double rv,
-    double cr, double lad)
+    double cr, double lad, bool backwards)
     {
-        std::cout << "Received Path Tracker config values:" << std::endl <<
-        "Rmin:\t" << minR << std::endl     <<
-        "tv:\t" << tv << std::endl       <<
-        "rv:\t" << rv << std::endl       <<
-        "cr:\t" << cr << std::endl       <<
-        "lh:\t" << lad << std::endl;
+        std::cout << 
+        "------------------------------------" << std::endl <<
+        "Received Path Tracker config values:" << std::endl <<
+        "Min. turn radius:\t"   << minR << " m."  << std::endl <<
+        "Translat. vel.:\t\t"       << tv  << " m/s." << std::endl <<
+        "Rotation. vel:\t\t"      << rv <<  " rad/s."<< std::endl <<
+        "Clearance:\t\t"          << cr <<  " m."  << std::endl   <<
+        "Lookahead dist.\t\t"     << lad << " m."  << std::endl   <<
+        "Reverse:\t\t";
+        if(backwards){
+            std::cout<< "Permitted.\n";
+        } else {
+            std::cout<< "Forbidden.\n";
+        }
+        std::cout<< "------------------------------------" <<std::endl;
+
         // All config. parameters must be possitive
         if( minR>0 && tv>0 && rv>0 && cr > 0 && lad > 0){
-            minTurnRadius 		= minR;
-            translationalVelocity 	= tv;
-            rotationalVelocity 	= rv;
-            corridor		= cr;
-            lookaheadDistance	= lad;
+            minTurnRadius           = minR;
+            translationalVelocity   = tv;
+            rotationalVelocity      = rv;
+            corridor                = cr;
+            lookaheadDistance       = lad;
+            backwardPerimtted       = backwards;
             // std::cout << "Config successful, " << getLookaheadDistance() << std::endl;
             return true;
         } else {

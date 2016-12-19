@@ -43,24 +43,24 @@ class WaypointNavigation
   	    return trajectory;
   	}
 
-    	NavigationState getNavigationState();
-    	void setNavigationState(NavigationState state);
+    NavigationState getNavigationState();
+    void setNavigationState(NavigationState state);
 
-    	const base::Waypoint* getLookaheadPoint();
+    const base::Waypoint* getLookaheadPoint();
 
-	bool update(base::commands::Motion2D& mc);
+	  bool update(base::commands::Motion2D& mc);
 
-	bool configure(	double minR,
-			double tv, double rv,
-			double cr, double lad);
+	  bool configure(	double minR,
+			   double tv, double rv,
+			   double cr, double lad, bool backward);
   	/**
   	* Calculates a motion command (Ackermann or Point turn)
   	* given the robot pose and DRIVING mode
   	*/
   	void getMovementCommand (base::commands::Motion2D& mc);
 
-	bool getProgressOnSegment(int segmentNumber,
-			 double& progress, double& distAlong, double& distPerpend);
+	  bool getProgressOnSegment(int segmentNumber,
+			  double& progress, double& distAlong, double& distPerpend);
         double getLookaheadDistance();
         void setCurrentSegment(int segmentNumber); // TESTING ONLY - TODO Remove
   private:
@@ -68,27 +68,28 @@ class WaypointNavigation
 	* MEMBER VARIABLES
 	*/
   	NavigationState mNavigationState;
-	bool aligning;
+	  bool aligning;
   	bool targetSet;
   	bool poseSet;
   	bool newWaypoint;
     bool finalPhase;
+    bool backwardPerimtted;
 
   	double minTurnRadius;        	// Minimum turn radius [m]
     double maxDisplacementAckermannTurn;
   	double maxDisalignment;      	// May be used
     double translationalVelocity;
-	double rotationalVelocity;
-	double corridor; 		// Allowed Distance perpendicular to path segment
-	double lookaheadDistance;
-	double distanceToPath;
+	  double rotationalVelocity;
+	  double corridor; 		// Allowed Distance perpendicular to path segment
+	  double lookaheadDistance;
+	  double distanceToPath;
     double targetHeading;
 
   	base::samples::RigidBodyState curPose;
   	base::Waypoint targetPose;
 
   	std::vector<double> *distanceToNext;
-	std::vector<base::Waypoint *> trajectory;
+	  std::vector<base::Waypoint *> trajectory;
   	base::Waypoint lookaheadPoint;
     size_t currentSegment;
 
