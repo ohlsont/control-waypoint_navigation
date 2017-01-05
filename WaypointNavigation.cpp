@@ -44,7 +44,7 @@ WaypointNavigation::WaypointNavigation()
     alignment_P = rotationalVelocity/alignment_saturation;
     alignment_D = 0.75*alignment_P;
 
-    bool pd_initialized = false;
+    pd_initialized = false;
     
     // Velocities
     translationalVelocity = 0.05; // [m/s]
@@ -61,8 +61,10 @@ NavigationState WaypointNavigation::getNavigationState() {
 }
 
 void  WaypointNavigation::setNavigationState(NavigationState state){
-    mNavigationState = state;
-    pd_initialized = false;
+	if (mNavigationState != state){
+    	mNavigationState = state;
+    	pd_initialized = false;
+    }
 }
 double WaypointNavigation::getLookaheadDistance(){
     return lookaheadDistance;
@@ -97,18 +99,6 @@ void WaypointNavigation::setLookaheadPoint(base::Waypoint& waypoint)
 // Get the movement command from current pose to the current lookahead point
 void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
 {
-    //check if std deviation is bigger than the specified std deviation for the current target pose
-    for (int i = 0; i<3; i++) {
-        // no sqrt, as both values are sqared, and > is vallid in this case
-        if(curPose.cov_position(i,i) > lookaheadPoint.tol_position) {
-            std::cout << "Variance of " << i << " is to high " << curPose.cov_position(i,i)
-            << " should be smaller than " << lookaheadPoint.tol_position << std::endl;
-            mc.translation = 0;
-            mc.rotation = 0;
-            return;
-        }
-    }
-
     if(!targetSet || !poseSet) {
         std::cout << "No target or pose specified" << std::endl;
         mc.translation = 0;
@@ -376,16 +366,19 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             headingErrPrev = headingErr;
             headingErr     = targetHeading - curPose.getYaw();
             wrapAngle(headingErr);
-            headingErrDiff = headingErr-headingErrPrev;
             saturation(headingErr,alignment_saturation);
+            headingErrDiff = headingErr-headingErrPrev;
 
             if(pd_initialized){
-            	alignment_dt = (t1-tprev).toMilliseconds()*1000;
+            	alignment_dt = (t1-tprev).toMilliseconds()/1000.0;
+            	std::cout << "d/dt = " << headingErrDiff*180/M_PI << "/" << alignment_dt << " = ";
             	headingErrDiff /= alignment_dt;
             	saturation(headingErrDiff,10.0/180.0*M_PI);
+            	std::cout << headingErrDiff << std::endl;
             } else {
-            	headingErrDiff = 0;
             	pd_initialized = true;
+            	headingErrDiff = 0;
+            	std::cout << "PD initialized" << std::endl;
             }
           
             if ( fabs(headingErr) < disalignmentTolerance){
@@ -398,11 +391,18 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             saturation(mc.rotation,rotationalVelocity);
             tprev = t1;
             
-            std::cout   << "Aligning:\t " << 180.0/M_PI*curPose.getYaw()<<
-                " to " <<          180.0/M_PI*targetHeading  <<
-                "+-"   << 180.0/M_PI*disalignmentTolerance << " deg" <<
-                ",\t rv = "<<          180.0/M_PI*mc.rotation    <<
-                "deg/s."      << std::endl;
+            std::cout << "Aligning:\t " << 180.0/M_PI*curPose.getYaw() << " to " 
+                << 180.0/M_PI*targetHeading  		<< "+-"   
+                << 180.0/M_PI*disalignmentTolerance << " deg,\nrv = "
+                << 180.0/M_PI*alignment_P * headingErr 		<< " + "
+                << 180.0/M_PI*alignment_D * headingErrDiff  << " ~ "
+                << 180.0/M_PI*mc.rotation    		<< "deg/s "      << std::endl;
+
+            std::cout   << "e-: " << 180.0/M_PI*headingErrPrev 	<< "deg." << std::endl;
+            std::cout   << "e:  " << 180.0/M_PI*headingErr 	<< "deg." << std::endl;
+            std::cout   << "de: " << 180.0/M_PI*headingErrDiff << "deg." << std::endl;
+           
+
             break;
         } // --- end of ALIGNING ---
         case OUT_OF_BOUNDARIES:
