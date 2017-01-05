@@ -1,15 +1,16 @@
 <package>
     <description brief="waypoint navigation library">
-        This library implements a behaviour that provides control commands from
-        a position and a set of waypoints. Waypoints are taken one by one in
-        order, with a tolerance that specifies when the waypoint should be
-        considered as visited.
+        This library implements a pure-pursuit based path following for
+        rovers with Ackermann-type steering. 
+        The path is represented as a list of waypoints, each
+        consecutive pair interconnected using a straight line segments.
+        The output is in form of translational and rotational velocity.
+        Inspired by WaypointNavigation by Janosch Machowinski/janosch.machowinski@dfki.de
     </description>
-    <author>Janosch Machowinski/janosch.machowinski@dfki.de</author>
+    <author>Jan Filip/jan.filip@esa.int</author>
     <copyright>
-        DFKI/robotik@dfki.de
+        ESA/jan.filip@esa.int
     </copyright>
     <license>LGPL v2 or later</license>
-
     <depend package="base/types" />
 </package>

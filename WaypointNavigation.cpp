@@ -1,3 +1,24 @@
+/****************************************************************
+ *
+ * Copyright (c) 2016
+ *
+ * European Space Technology and Research Center
+ * ESTEC - European Space Agency
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ *
+ * Description: Library for pure-pursuit based path following
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ *
+ * Author: Jan Filip, email:jan.filip@esa.int, jan.filip2@gmail.com
+ * Supervised by: Martin Azkarate, email:martin.azkarate@esa.int
+ *
+ * Date of creation: Dec 2016
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ */
+
 #include "WaypointNavigation.hpp"
 #include <iostream>
 
@@ -14,12 +35,20 @@ WaypointNavigation::WaypointNavigation()
     // Ackermann turn parameters
     minTurnRadius    = 0.6; // (in meters)
     maxDisplacementAckermannTurn = 0.25; // (meters from straight line to the next point)
+    
     // Alignment parameters
-    maxDisalignment = 5.0 / 180.0 * M_PI;
+    alignment_deadband   = 5.0 / 180.0 * M_PI;
+    alignment_saturation = 20.0 / 180.0 * M_PI;
+    rotationalVelocity   = 10.0 / 180.0 * M_PI;    // [rad/s] ... cca 8.6 deg/s
+    headingErr = 0;
+    alignment_P = rotationalVelocity/alignment_saturation;
+    alignment_D = 0.75*alignment_P;
 
+    bool pd_initialized = false;
+    
     // Velocities
     translationalVelocity = 0.05; // [m/s]
-    rotationalVelocity = 0.15;    // [rad/s] ... cca 8.6 deg/s
+    
     // Distances
     corridor = .2;
     lookaheadDistance = .6;
@@ -33,6 +62,7 @@ NavigationState WaypointNavigation::getNavigationState() {
 
 void  WaypointNavigation::setNavigationState(NavigationState state){
     mNavigationState = state;
+    pd_initialized = false;
 }
 double WaypointNavigation::getLookaheadDistance(){
     return lookaheadDistance;
@@ -338,28 +368,41 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         case ALIGNING:
         {
             mc.translation = 0; // Ensure
-            double headingErr, disalignmentTolerance;
-            disalignmentTolerance = finalPhase ? trajectory.back()->tol_heading : maxDisalignment;
-            headingErr  = targetHeading - curPose.getYaw();
+            base::Time t1 = base::Time::now();
+        
+            double disalignmentTolerance, headingErrPrev, headingErrDiff, alignment_dt;
+            disalignmentTolerance = finalPhase ? trajectory.back()->tol_heading : alignment_deadband;
+            
+            headingErrPrev = headingErr;
+            headingErr     = targetHeading - curPose.getYaw();
             wrapAngle(headingErr);
-            if ( headingErr > disalignmentTolerance*2){
-                mc.rotation     =  rotationalVelocity;
-            } else if ( headingErr < - disalignmentTolerance*2){
-                 mc.rotation    = -rotationalVelocity;
-            } else if ( fabs(headingErr) < disalignmentTolerance){
+            headingErrDiff = headingErr-headingErrPrev;
+            saturation(headingErr,alignment_saturation);
+
+            if(pd_initialized){
+            	alignment_dt = (t1-tprev).toMilliseconds()*1000;
+            	headingErrDiff /= alignment_dt;
+            	saturation(headingErrDiff,10.0/180.0*M_PI);
+            } else {
+            	headingErrDiff = 0;
+            	pd_initialized = true;
+            }
+          
+            if ( fabs(headingErr) < disalignmentTolerance){
                 mc.rotation = 0;
                 setNavigationState(DRIVING);
             } else {
-                std::cout << "Proportional" << std::endl;
-                mc.rotation =  rotationalVelocity/(disalignmentTolerance*2) * headingErr;
+			    mc.rotation =  alignment_P * headingErr + alignment_D * headingErrDiff;
             }
 
+            saturation(mc.rotation,rotationalVelocity);
+            tprev = t1;
+            
             std::cout   << "Aligning:\t " << 180.0/M_PI*curPose.getYaw()<<
                 " to " <<          180.0/M_PI*targetHeading  <<
                 "+-"   << 180.0/M_PI*disalignmentTolerance << " deg" <<
                 ",\t rv = "<<          180.0/M_PI*mc.rotation    <<
                 "deg/s."      << std::endl;
-
             break;
         } // --- end of ALIGNING ---
         case OUT_OF_BOUNDARIES:
@@ -624,6 +667,22 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
                 angle += 2*M_PI; 
             }
         }
+
+        inline void WaypointNavigation::saturation(double& value, double limit){
+        	if (value > limit){
+        		value = limit;
+        	} else if(value < -limit){
+        		value = -limit;
+        	}
+        }
+
+        bool WaypointNavigation::configurePD(double P, double D, double saturation){
+			alignment_P = P>0 ? P : 0;
+        	alignment_D = D>0 ? D : 0;
+        	alignment_saturation = saturation;
+        	return true;
+        }
+    
 
 
 }

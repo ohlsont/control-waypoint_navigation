@@ -1,3 +1,24 @@
+/****************************************************************
+ *
+ * Copyright (c) 2016
+ *
+ * European Space Technology and Research Center
+ * ESTEC - European Space Agency
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ *
+ * Description: Library for pure-pursuit based path following
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ *
+ * Author: Jan Filip, email:jan.filip@esa.int, jan.filip2@gmail.com
+ * Supervised by: Martin Azkarate, email:martin.azkarate@esa.int
+ *
+ * Date of creation: Dec 2016
+ *
+ * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ */
+
 #ifndef WAYPOINT_NAVIGATION_HPP
 #define WAYPOINT_NAVIGATION_HPP
 #include <Eigen/Geometry>
@@ -52,7 +73,11 @@ class WaypointNavigation
 
 	  bool configure(	double minR,
 			   double tv, double rv,
-			   double cr, double lad, bool backward);
+			   double cr, double lad, bool backward
+         );
+    
+    bool configurePD(double P, double D, double saturation);
+
   	/**
   	* Calculates a motion command (Ackermann or Point turn)
   	* given the robot pose and DRIVING mode
@@ -77,13 +102,19 @@ class WaypointNavigation
 
   	double minTurnRadius;        	// Minimum turn radius [m]
     double maxDisplacementAckermannTurn;
-  	double maxDisalignment;      	// May be used
-    double translationalVelocity;
+  	double translationalVelocity;
 	  double rotationalVelocity;
 	  double corridor; 		// Allowed Distance perpendicular to path segment
 	  double lookaheadDistance;
 	  double distanceToPath;
     double targetHeading;
+
+    double alignment_deadband, alignment_saturation;
+    double headingErr, alignment_P, alignment_D;
+    bool pd_initialized;
+    base::Time tprev;
+    
+
 
   	base::samples::RigidBodyState curPose;
   	base::Waypoint targetPose;
@@ -114,6 +145,7 @@ class WaypointNavigation
 
     bool isInsideBoundaries(double& distAlong, double& distPerpend);
     inline void wrapAngle(double& angle);
+    inline void saturation(double& value, double limit);
 
 };
 }
