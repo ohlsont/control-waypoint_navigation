@@ -34,7 +34,8 @@ enum NavigationState{
       ALIGNING,
       TARGET_REACHED,
       OUT_OF_BOUNDARIES,
-      NO_TRAJECTORY
+      NO_TRAJECTORY,
+      NO_POSE
 };
 class WaypointNavigation
 {
