@@ -40,6 +40,9 @@ WaypointNavigation::WaypointNavigation()
     alignment_deadband   = 5.0 / 180.0 * M_PI;
     alignment_saturation = 20.0 / 180.0 * M_PI;
     rotationalVelocity   = 10.0 / 180.0 * M_PI;    // [rad/s] ... cca 8.6 deg/s
+
+    defaultTolHeading	= 3.0/180.0 * M_PI;
+    defaultTolPos 		= 0.075;
     headingErr = 0;
     alignment_P = rotationalVelocity/alignment_saturation;
     alignment_D = 0.75*alignment_P;
@@ -99,7 +102,7 @@ void WaypointNavigation::setLookaheadPoint(base::Waypoint& waypoint)
 // Get the movement command from current pose to the current lookahead point
 void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
 {
-    if(!targetSet || !poseSet) {
+        if(!targetSet || !poseSet) {
         std::cout << "No target or pose specified" << std::endl;
         mc.translation = 0;
         mc.rotation = 0;
@@ -200,7 +203,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
     }
     trajectory.clear();
     trajectory = t;
-    targetSet 	   = false;
+    targetSet  = false;
     
     if(!trajectory.empty()) {
     	// Add current pose at the begining
@@ -209,6 +212,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 	    } else {
 	    	currentSegment = 0;
 	    }
+	    // Precalculate distances
         distanceToNext->resize(trajectory.size()-1);
         base::Vector3d wp;
         for (size_t i = 0; i < distanceToNext->size(); i++) {
@@ -217,6 +221,17 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
             wp.z() = 0;
             distanceToNext->at(i) = wp.norm();
         }
+        // Check goal tolerances
+        if (trajectory.back()->tol_position <= 0 || trajectory.back()->tol_heading <= 0){
+        	trajectory.back()->tol_position = defaultTolPos;
+        	trajectory.back()->tol_heading  = defaultTolHeading;
+        }
+
+        // Case of 0deg target heading: use the last segment heading instead
+        if (trajectory.back()->heading == 0){
+        	trajectory.back()->heading = atan2( wp.y(), wp.x());
+        }
+
         setNavigationState(DRIVING);
     } else {
         distanceToNext = new std::vector<double>();
@@ -681,6 +696,17 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
         	alignment_D = D>0 ? D : 0;
         	alignment_saturation = saturation;
         	return true;
+        }
+
+        bool WaypointNavigation::configureTol(double tolPos, double tolHeading){
+        	if (tolPos>0 && tolHeading>0){
+        		defaultTolPos 		= tolPos;
+        		defaultTolHeading 	= tolHeading;
+        		return true;
+        	} else {
+        		return false;
+        	}
+        	
         }
     
 

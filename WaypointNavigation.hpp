@@ -77,6 +77,7 @@ class WaypointNavigation
          );
     
     bool configurePD(double P, double D, double saturation);
+    bool configureTol(double TolPos, double TolHeading);
 
   	/**
   	* Calculates a motion command (Ackermann or Point turn)
@@ -84,10 +85,10 @@ class WaypointNavigation
   	*/
   	void getMovementCommand (base::commands::Motion2D& mc);
 
-	  bool getProgressOnSegment(int segmentNumber,
+	bool getProgressOnSegment(int segmentNumber,
 			  double& progress, double& distAlong, double& distPerpend);
-        double getLookaheadDistance();
-        void setCurrentSegment(int segmentNumber); // TESTING ONLY - TODO Remove
+    double getLookaheadDistance();
+    void setCurrentSegment(int segmentNumber); // TESTING ONLY - TODO Remove
   private:
 	/*
 	* MEMBER VARIABLES
@@ -103,12 +104,16 @@ class WaypointNavigation
   	double minTurnRadius;        	// Minimum turn radius [m]
     double maxDisplacementAckermannTurn;
   	double translationalVelocity;
-	  double rotationalVelocity;
-	  double corridor; 		// Allowed Distance perpendicular to path segment
-	  double lookaheadDistance;
-	  double distanceToPath;
+	double rotationalVelocity;
+	double corridor; 		// Allowed Distance perpendicular to path segment
+	double lookaheadDistance;
+	double distanceToPath;
     double targetHeading;
 
+    // Alignment tolerances
+    double defaultTolHeading, defaultTolPos;
+
+    // Alignment controller
     double alignment_deadband, alignment_saturation;
     double headingErr, alignment_P, alignment_D;
     bool pd_initialized;
