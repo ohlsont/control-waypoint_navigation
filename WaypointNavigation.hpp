@@ -29,6 +29,8 @@
 
 namespace waypoint_navigation_lib{
 
+#define WAYPOINT_NAVIGATION_DEBUG 0
+
 enum NavigationState{
       DRIVING=0,
       ALIGNING,

@@ -79,7 +79,9 @@ bool WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
 {
     if( isnan(pose.position(0)) || isnan(pose.position(1)) ){
         // Position data are not valid, pose will not be set
-        std::cout << "Position is not valid!" << std::endl;
+        if (WAYPOINT_NAVIGATION_DEBUG){
+        	std::cout << "Position is not valid!" << std::endl;
+    	}
         return false;
     } else {
         curPose = pose;
@@ -103,7 +105,9 @@ void WaypointNavigation::setLookaheadPoint(base::Waypoint& waypoint)
 void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
 {
         if(!targetSet || !poseSet) {
-        std::cout << "No target or pose specified" << std::endl;
+        	if (WAYPOINT_NAVIGATION_DEBUG){
+        		std::cout << "No target or pose specified" << std::endl;
+        	}
         mc.translation = 0;
         mc.rotation = 0;
         return;
@@ -229,7 +233,12 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
 
         // Case of 0deg target heading: use the last segment heading instead
         if (trajectory.back()->heading == 0){
-        	trajectory.back()->heading = atan2( wp.y(), wp.x());
+        	if (trajectory.size() > 1){
+        		trajectory.back()->heading = atan2( wp.y(), wp.x());
+        	} else { // Quickfix: Final heading from single wp trajectory.
+        		wp = trajectory.back()->position - curPose.position;
+        		trajectory.back()->heading = atan2( wp.y(), wp.x());
+        	}
         }
 
         setNavigationState(DRIVING);
@@ -284,11 +293,13 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                     setNavigationState(DRIVING);
                 }
             }
-            std::cout << "Final phase:" << finalPhase << std::endl <<
-            "\t Dist remng.   \t" << distToNext << " m" << std::endl <<
-            "\t Heading error \t" << headingErr*180/M_PI<<
-            "/" << trajectory.back()->tol_heading*180/M_PI << " deg" << std::endl <<
-            "\t Pos. err. est.\t" << posErr << "/" << trajectory.back()->tol_position <<"m " <<  std::endl;
+            if (WAYPOINT_NAVIGATION_DEBUG){
+	            std::cout << "Final phase:" << finalPhase << std::endl <<
+	            "\t Dist remng.   \t" << distToNext << " m" << std::endl <<
+	            "\t Heading error \t" << headingErr*180/M_PI<<
+	            "/" << trajectory.back()->tol_heading*180/M_PI << " deg" << std::endl <<
+	            "\t Pos. err. est.\t" << posErr << "/" << trajectory.back()->tol_position <<"m " <<  std::endl;
+	        }
             break;
         }
     }
@@ -330,7 +341,9 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 
             // i) Get the look ahead point segment
             base::Vector2d lineVector, lookaheadPoint2D;
-            std::cout << "Distance: "<< distance << "/" << lookaheadDistance << std::endl;
+            if (WAYPOINT_NAVIGATION_DEBUG){
+            	std::cout << "Distance: "<< distance << "/" << lookaheadDistance << std::endl;
+            }
             if (distance > lookaheadDistance) // Lookahead within same seg.
             {
                 // ii) Get the look ahead point in the current segment
@@ -386,14 +399,18 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 
             if(pd_initialized){
             	alignment_dt = (t1-tprev).toMilliseconds()/1000.0;
-            	std::cout << "d/dt = " << headingErrDiff*180/M_PI << "/" << alignment_dt << " = ";
             	headingErrDiff /= alignment_dt;
             	saturation(headingErrDiff,10.0/180.0*M_PI);
-            	std::cout << headingErrDiff << std::endl;
+            	if (WAYPOINT_NAVIGATION_DEBUG){
+            		std::cout << "d/dt = " << headingErrDiff*180/M_PI << "/" << alignment_dt << " = ";
+            		std::cout << headingErrDiff << std::endl;
+            	}
             } else {
             	pd_initialized = true;
             	headingErrDiff = 0;
-            	std::cout << "PD initialized" << std::endl;
+            	if (WAYPOINT_NAVIGATION_DEBUG){
+            		std::cout << "PD initialized" << std::endl;
+            	}
             }
           
             if ( fabs(headingErr) < disalignmentTolerance){
@@ -406,17 +423,18 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             saturation(mc.rotation,rotationalVelocity);
             tprev = t1;
             
-            std::cout << "Aligning:\t " << 180.0/M_PI*curPose.getYaw() << " to " 
-                << 180.0/M_PI*targetHeading  		<< "+-"   
-                << 180.0/M_PI*disalignmentTolerance << " deg,\nrv = "
-                << 180.0/M_PI*alignment_P * headingErr 		<< " + "
-                << 180.0/M_PI*alignment_D * headingErrDiff  << " ~ "
-                << 180.0/M_PI*mc.rotation    		<< "deg/s "      << std::endl;
+            if (WAYPOINT_NAVIGATION_DEBUG){
+	            std::cout << "Aligning:\t " << 180.0/M_PI*curPose.getYaw() << " to " 
+	                << 180.0/M_PI*targetHeading  		<< "+-"   
+	                << 180.0/M_PI*disalignmentTolerance << " deg,\nrv = "
+	                << 180.0/M_PI*alignment_P * headingErr 		<< " + "
+	                << 180.0/M_PI*alignment_D * headingErrDiff  << " ~ "
+	                << 180.0/M_PI*mc.rotation    		<< "deg/s "      << std::endl;
 
-            std::cout   << "e-: " << 180.0/M_PI*headingErrPrev 	<< "deg." << std::endl;
-            std::cout   << "e:  " << 180.0/M_PI*headingErr 	<< "deg." << std::endl;
-            std::cout   << "de: " << 180.0/M_PI*headingErrDiff << "deg." << std::endl;
-           
+	            std::cout   << "e-: " << 180.0/M_PI*headingErrPrev 	<< "deg." << std::endl;
+	            std::cout   << "e:  " << 180.0/M_PI*headingErr 	<< "deg." << std::endl;
+	            std::cout   << "de: " << 180.0/M_PI*headingErrDiff << "deg." << std::endl;
+           	}
 
             break;
         } // --- end of ALIGNING ---
@@ -497,14 +515,17 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             break;
         }
         case TARGET_REACHED:
-            std::cout << "Target Reached." 		<< std::endl;
+        	if (WAYPOINT_NAVIGATION_DEBUG)
+            	std::cout << "Target Reached." 		<< std::endl;
             //finalPhase = false;
             break;
         case NO_TRAJECTORY:
-            std::cout << "Invalid trajectory." 	<< std::endl;
+        	if (WAYPOINT_NAVIGATION_DEBUG)
+            	std::cout << "Invalid trajectory." 	<< std::endl;
             break;
         default:
-            std::cout<<"Default case."<<std::endl;
+        	if (WAYPOINT_NAVIGATION_DEBUG)
+            	std::cout<<"Default case."<<std::endl;
             break;
     }
     return true;
@@ -636,14 +657,15 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
 
         void WaypointNavigation::setCurrentSegment(int segmentNumber){
         	if (segmentNumber < 0){
-        		std::cerr << "Attemp to set invalid segment number" << std::endl;
+        		if (WAYPOINT_NAVIGATION_DEBUG)
+        			std::cerr << "Attemp to set invalid segment number" << std::endl;
         		return;
         	}
         	if ( segmentNumber < 1){
         		w1 << curPose.position(0), curPose.position(1);
 	        	setSegmentWaypoint(w2, segmentNumber);
         	} else {
-        		setSegmentWaypoint(w2, segmentNumber-1);
+        		setSegmentWaypoint(w1, segmentNumber-1);
         		setSegmentWaypoint(w2, segmentNumber);
         	}
         	currentSegment = segmentNumber;
@@ -663,10 +685,14 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
             		 && distPerpend < corridor){
             		maxIndex = i;
             	}
+            	if (WAYPOINT_NAVIGATION_DEBUG){
             	std::cout << "Segment: " << i << ", progress: " << progress << 
         			", dist from nominal " << distPerpend << std::endl;
+        		}
         	}
-        	std::cout << "Segment set to: " << maxIndex << std::endl;
+        	if (WAYPOINT_NAVIGATION_DEBUG){
+        		std::cout << "Segment set to: " << maxIndex << std::endl;
+        	}
         	setCurrentSegment(maxIndex);
         }
 
