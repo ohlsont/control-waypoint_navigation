@@ -99,7 +99,6 @@ class WaypointNavigation
   	NavigationState mNavigationState;
 	  bool aligning;
   	bool targetSet;
-  	bool alignmentReached;
   	bool poseSet;
   	bool newWaypoint;
     bool finalPhase;
