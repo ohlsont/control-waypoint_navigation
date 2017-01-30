@@ -31,6 +31,7 @@ WaypointNavigation::WaypointNavigation()
     targetSet   = false;
     poseSet     = false;
     finalPhase  = false;
+    alignmentReached = false;
 
     // Ackermann turn parameters
     minTurnRadius    = 0.6; // (in meters)
@@ -66,7 +67,8 @@ NavigationState WaypointNavigation::getNavigationState() {
 void  WaypointNavigation::setNavigationState(NavigationState state){
 	if (mNavigationState != state){
     	mNavigationState = state;
-    	pd_initialized = false;
+    	pd_initialized   = false;
+    	alignmentReached = false;
     }
 }
 double WaypointNavigation::getLookaheadDistance(){
@@ -273,8 +275,10 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             if( finalPhase || distToNext <= trajectory.back()->tol_position ){
                 // Position for alignment was reached
                 finalPhase = true;
-                if( fabs(headingErr) < trajectory.back()->tol_heading){
+                if(  fabs(headingErr) < trajectory.back()->tol_heading ||
+                	(fabs(headingErr) < trajectory.back()->tol_heading*2 && alignmentReached) ){
                     setNavigationState(TARGET_REACHED);
+                    alignmentReached = true;
                 } else {
                     setNavigationState(ALIGNING); // Align to target heading
                     targetHeading = trajectory.back()->heading;
