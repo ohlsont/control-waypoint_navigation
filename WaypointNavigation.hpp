@@ -32,12 +32,12 @@ namespace waypoint_navigation_lib{
 #define WAYPOINT_NAVIGATION_DEBUG 0
 
 enum NavigationState{
-      DRIVING=0,
-      ALIGNING,
-      TARGET_REACHED,
-      OUT_OF_BOUNDARIES,
-      NO_TRAJECTORY,
-      NO_POSE
+      DRIVING=0,        // 0
+      ALIGNING,         // 1
+      TARGET_REACHED,   // 2
+      OUT_OF_BOUNDARIES,// 3
+      NO_TRAJECTORY,    // 4
+      NO_POSE           // 5 
 };
 class WaypointNavigation
 {
