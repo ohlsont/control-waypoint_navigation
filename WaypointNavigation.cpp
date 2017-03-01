@@ -31,7 +31,6 @@ WaypointNavigation::WaypointNavigation()
     targetSet   = false;
     poseSet     = false;
     finalPhase  = false;
-    first_waypoint_reached = false;
 
     // Ackermann turn parameters
     minTurnRadius    = 0.6; // (in meters)
@@ -65,17 +64,8 @@ NavigationState WaypointNavigation::getNavigationState() {
 }
 
 void  WaypointNavigation::setNavigationState(NavigationState state){
-	if (mNavigationState != state)
-	{
-	    // TODO: terrible fix, I should not be allowed to do this
-	    if(!first_waypoint_reached && state == DRIVING)
-	    {
-	        mNavigationState = MOVE_TO_START;
-	    }
-	    else
-	    {
-    	    mNavigationState = state;
-    	}
+	if (mNavigationState != state){
+    	mNavigationState = state;
     	pd_initialized = false;
     }
 }
@@ -251,8 +241,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
         	}
         }
 
-        //setNavigationState(DRIVING);
-        setNavigationState(MOVE_TO_START);
+        setNavigationState(DRIVING);
     } else {
         distanceToNext = new std::vector<double>();
         setNavigationState(NO_TRAJECTORY);
@@ -338,23 +327,14 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
     * STATEMACHINE FOR EXECUTION OF DIFFERENT PATH FOLLOWING MODES
     ------------------------------------------- */
     switch (currentState) {
-        case MOVE_TO_START:
-        case DRIVING:
+        case (NavigationState)DRIVING:
         {
             // 0) OUT OF BOUNDARIES CHECK
-            // TODO: Add an exception for the first waypoint
-            if(distanceToPath >= corridor && currentState == DRIVING)
-            {
+            if ( distanceToPath >= corridor ){
                 setNavigationState(OUT_OF_BOUNDARIES);
                 mc.translation = 0;
                 mc.rotation =0;
                 return false;
-            }
-            else if(distanceToPath < corridor && currentState != DRIVING)
-            {
-                // The rover reached the first waypoint, switch to driving mode
-                first_waypoint_reached = true;
-                setNavigationState(DRIVING);
             }
             double distance;
             distance = distanceToPath + distToNext;

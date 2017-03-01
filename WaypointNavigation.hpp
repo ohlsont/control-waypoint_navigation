@@ -37,8 +37,7 @@ enum NavigationState{
       TARGET_REACHED,
       OUT_OF_BOUNDARIES,
       NO_TRAJECTORY,
-      NO_POSE,
-      MOVE_TO_START
+      NO_POSE
 };
 class WaypointNavigation
 {
@@ -82,7 +81,6 @@ class WaypointNavigation
     
     bool configurePD(double P, double D, double saturation);
     bool configureTol(double TolPos, double TolHeading);
-    bool first_waypoint_reached;
 
   	/**
   	* Calculates a motion command (Ackermann or Point turn)
