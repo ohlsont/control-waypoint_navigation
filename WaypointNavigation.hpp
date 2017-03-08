@@ -29,7 +29,7 @@
 
 namespace waypoint_navigation_lib{
 
-#define WAYPOINT_NAVIGATION_DEBUG 0
+#define WAYPOINT_NAVIGATION_DEBUG 1
 
 enum NavigationState{
       DRIVING=0,        // 0
