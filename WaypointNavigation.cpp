@@ -26,7 +26,7 @@ namespace waypoint_navigation_lib{
 
 WaypointNavigation::WaypointNavigation()
 {
-    mNavigationState = TARGET_REACHED;
+    mNavigationState = NO_TRAJECTORY;
     // Booleans
     targetSet   = false;
     poseSet     = false;
@@ -90,6 +90,7 @@ bool WaypointNavigation::setPose(base::samples::RigidBodyState& pose)
         if (!poseSet && !trajectory.empty()){
             w1 << curPose.position(0), curPose.position(1);
             setSegmentWaypoint(w2, currentSegment);
+            setNavigationState(DRIVING);
         }
         poseSet=true;
         return true;
@@ -224,8 +225,11 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
         		trajectory.back()->heading = atan2( wp.y(), wp.x());
         	}
         }
-
-        setNavigationState(DRIVING);
+        if (poseSet){
+            setNavigationState(DRIVING);
+        } else {
+            setNavigationState(NO_POSE);
+        }
     } else {
         distanceToNext = new std::vector<double>();
         setNavigationState(NO_TRAJECTORY);
