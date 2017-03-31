@@ -538,21 +538,24 @@ const base::Waypoint* WaypointNavigation::getLookaheadPoint(){
 bool WaypointNavigation::configure(double minR,	double tv, double rv,
     double cr, double lad, bool backwards)
     {
-        std::cout <<
-        "------------------------------------" << std::endl <<
-        "Received Path Tracker config values:" << std::endl <<
-        "Min. turn radius:\t"   << minR << " m."  << std::endl <<
-        "Translat. vel.:\t\t"       << tv  << " m/s." << std::endl <<
-        "Rotation. vel:\t\t"      << rv <<  " rad/s."<< std::endl <<
-        "Clearance:\t\t"          << cr <<  " m."  << std::endl   <<
-        "Lookahead dist.\t\t"     << lad << " m."  << std::endl   <<
-        "Reverse:\t\t";
-        if(backwards){
-            std::cout<< "Permitted.\n";
-        } else {
-            std::cout<< "Forbidden.\n";
+        if(WAYPOINT_NAVIGATION_DEBUG)
+        {
+          std::cout <<
+          "------------------------------------" << std::endl <<
+          "Received Path Tracker config values:" << std::endl <<
+          "Min. turn radius:\t"   << minR << " m."  << std::endl <<
+          "Translat. vel.:\t\t"       << tv  << " m/s." << std::endl <<
+          "Rotation. vel:\t\t"      << rv <<  " rad/s."<< std::endl <<
+          "Clearance:\t\t"          << cr <<  " m."  << std::endl   <<
+          "Lookahead dist.\t\t"     << lad << " m."  << std::endl   <<
+          "Reverse:\t\t";
+          if(backwards){
+              std::cout<< "Permitted.\n";
+          } else {
+              std::cout<< "Forbidden.\n";
+          }
+          std::cout<< "------------------------------------" <<std::endl;
         }
-        std::cout<< "------------------------------------" <<std::endl;
 
         // All config. parameters must be possitive
         if( minR>0 && tv>0 && rv>0 && cr > 0 && lad > 0){
@@ -691,8 +694,7 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
 				alignment_P = P;
 	        	alignment_D = D;
 	        	alignment_saturation = saturation;
-	        	std::cout << "WaypointNavigation::configurePD: P=" << alignment_P
-	        		<< ", D=" << alignment_D << ", sat=+-" << alignment_saturation << std::endl;
+	        	//std::cout << "WaypointNavigation::configurePD: P=" << alignment_P << ", D=" << alignment_D << ", sat=+-" << alignment_saturation << std::endl;
 	        	return true;
         	} else {
         		return false;
