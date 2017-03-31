@@ -29,7 +29,7 @@
 
 namespace waypoint_navigation_lib{
 
-#define WAYPOINT_NAVIGATION_DEBUG 1
+#define WAYPOINT_NAVIGATION_DEBUG 0
 
 enum NavigationState{
       DRIVING=0,        // 0
@@ -37,7 +37,7 @@ enum NavigationState{
       TARGET_REACHED,   // 2
       OUT_OF_BOUNDARIES,// 3
       NO_TRAJECTORY,    // 4
-      NO_POSE           // 5 
+      NO_POSE           // 5
 };
 class WaypointNavigation
 {
@@ -78,7 +78,7 @@ class WaypointNavigation
 			   double tv, double rv,
 			   double cr, double lad, bool backward
          );
-    
+
     bool configurePD(double P, double D, double saturation);
     bool configureTol(double TolPos, double TolHeading);
 
@@ -121,7 +121,7 @@ class WaypointNavigation
     double headingErr, alignment_P, alignment_D;
     bool pd_initialized;
     base::Time tprev;
-    
+
 
 
   	base::samples::RigidBodyState curPose;
@@ -148,7 +148,7 @@ class WaypointNavigation
 	* from the current position of the robot
 	*/
     base::Vector2d getClosestPointOnPath();
-	
+
     void initilalizeCurrentSegment();
 
     bool isInsideBoundaries(double& distAlong, double& distPerpend);

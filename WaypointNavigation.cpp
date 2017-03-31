@@ -35,7 +35,7 @@ WaypointNavigation::WaypointNavigation()
     // Ackermann turn parameters
     minTurnRadius    = 0.6; // (in meters)
     maxDisplacementAckermannTurn = 0.25; // (meters from straight line to the next point)
-    
+
     // Alignment parameters
     alignment_deadband   = 5.0 / 180.0 * M_PI;
     alignment_saturation = 20.0 / 180.0 * M_PI;
@@ -48,10 +48,10 @@ WaypointNavigation::WaypointNavigation()
     alignment_D = 0.75*alignment_P;
 
     pd_initialized = false;
-    
+
     // Velocity
     translationalVelocity = 0.05; // [m/s]
-    
+
     // Distances
     corridor = .2;
     lookaheadDistance = .6;
@@ -63,11 +63,16 @@ NavigationState WaypointNavigation::getNavigationState() {
     return mNavigationState;
 }
 
-void  WaypointNavigation::setNavigationState(NavigationState state){
-	if (mNavigationState != state){
-		std::cout << "Changing nav. state from " << mNavigationState << " to " << state << std::endl;
-    	mNavigationState = state;
-    	pd_initialized   = false;
+void  WaypointNavigation::setNavigationState(NavigationState state)
+{
+    if(mNavigationState != state)
+    {
+        if(WAYPOINT_NAVIGATION_DEBUG)
+        {
+      		  std::cout << "Changing nav. state from " << mNavigationState << " to " << state << std::endl;
+        }
+      	mNavigationState = state;
+      	pd_initialized = false;
     }
 }
 double WaypointNavigation::getLookaheadDistance(){
@@ -143,7 +148,7 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
         /(2*lookaheadPointRCF.y());
 
         // Heading of the robot at the end of the turn to the lookahead point
-        double theta = atan2(lookaheadPointRCF.y(),lookaheadPointRCF.x())*2; 
+        double theta = atan2(lookaheadPointRCF.y(),lookaheadPointRCF.x())*2;
         // In Robot Coordinate Frame ... -360 to +360 deg
 
         wrapAngle(theta); //maps -360 to +360 deg --> 0 to 180, -180 to 180, -180 to 0
@@ -157,7 +162,7 @@ void WaypointNavigation::getMovementCommand (base::commands::Motion2D& mc)
             wrapAngle(targetHeading);
         }
         double distFromLine = distToTarget * (1-cos(targetHeading));
-        
+
         // SELECT THE MORE APPROPRIATE MOTION
         if( fabs(turn_radius) <= minTurnRadius            ||
             fabs(distFromLine)>= maxDisplacementAckermannTurn )
@@ -191,7 +196,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
     trajectory.clear();
     trajectory = t;
     targetSet  = false;
-    
+
     if(!trajectory.empty()) {
     	// Add current pose at the begining
 	    if (poseSet){
@@ -234,7 +239,7 @@ void WaypointNavigation::setTrajectory(std::vector< base::Waypoint *>& t )
         distanceToNext = new std::vector<double>();
         setNavigationState(NO_TRAJECTORY);
     }
-    
+
 }
 
 // MAIN PATH FOLLOWING UPDATE FUNCTION CALLED FROM THE COMPONENT UPDATE HOOK
@@ -261,16 +266,16 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             if( finalPhase || distToNext <= trajectory.back()->tol_position ){
                 // Position for alignment was reached
                 finalPhase = true;
-                if(  fabs(headingErr) < trajectory.back()->tol_heading || 
+                if(  fabs(headingErr) < trajectory.back()->tol_heading ||
                 	(mNavigationState==TARGET_REACHED && fabs(headingErr) < 2*trajectory.back()->tol_heading))
              	{
                     setNavigationState(TARGET_REACHED);
-                    std::cout << "Go to target reached" << std::endl;
+                    //std::cout << "Go to target reached" << std::endl;
                 } else {
                     setNavigationState(ALIGNING); // Align to target heading
                     targetHeading = trajectory.back()->heading;
                     wrapAngle(targetHeading);
-                    std::cout << "Go to alignment with " << targetHeading*180.0/M_PI << std::endl;
+                    //std::cout << "Go to alignment with " << targetHeading*180.0/M_PI << std::endl;
                 }
             } else {
                 //finalPhase = false;
@@ -300,7 +305,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 
     // 2) Get intersection point with the Path (should also return distance from the segment)
     base::Vector2d xi = getClosestPointOnPath();
-    
+
     // 3) Calculate the distance from the nominal trajectory
     distanceToPath = (xr-xi).norm();
 
@@ -327,7 +332,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             distance = distanceToPath + distToNext;
 
             double k_epsilon = 1.0; // Is not changed in this implementation.
-            
+
             // Adaptive lookahead distance calculation
             double lookaheadDistanceAdaptive;
             lookaheadDistanceAdaptive = lookaheadDistance - k_epsilon * distanceToPath;
@@ -368,7 +373,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             lookaheadPoint.heading  = atan2(lineVector(1),lineVector(0));
             lookaheadPoint.tol_position = 0.1;
             targetSet = true;
-            
+
             // iii) Get motion command to the lookahead point
             getMovementCommand(mc);
             if ( fabs(mc.translation) < 1e-6){
@@ -381,10 +386,10 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
         {
             mc.translation = 0; // Ensure
             base::Time t1 = base::Time::now();
-        
+
             double disalignmentTolerance, headingErrPrev, headingErrDiff, alignment_dt;
             disalignmentTolerance = finalPhase ? trajectory.back()->tol_heading : alignment_deadband;
-            
+
             headingErrPrev = headingErr;
             headingErr     = targetHeading - curPose.getYaw();
 
@@ -394,7 +399,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             	std::cout << "Target headin " << targetHeading*180.0/M_PI << "deg" << std::endl;
             	std::cout << "Heading error " << headingErr*180.0/M_PI << " deg" << std::endl;
         	}
-            
+
             headingErrDiff = headingErr-headingErrPrev;
 
             if(pd_initialized){
@@ -412,7 +417,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
             		std::cout << "PD re-initialized" << std::endl;
             	}
             }
-          
+
             if ( fabs(headingErr) < disalignmentTolerance){
                 mc.rotation = 0;
                 setNavigationState(DRIVING);
@@ -422,10 +427,10 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
 
             saturation(mc.rotation,rotationalVelocity);
             tprev = t1;
-            
+
             if (WAYPOINT_NAVIGATION_DEBUG){
-	            std::cout << "Aligning:\t " << 180.0/M_PI*curPose.getYaw() << " to " 
-	                << 180.0/M_PI*targetHeading  		<< "+-"   
+	            std::cout << "Aligning:\t " << 180.0/M_PI*curPose.getYaw() << " to "
+	                << 180.0/M_PI*targetHeading  		<< "+-"
 	                << 180.0/M_PI*disalignmentTolerance << " deg,\nrv = "
 	                << 180.0/M_PI*alignment_P * headingErr 		<< " + "
 	                << 180.0/M_PI*alignment_D * headingErrDiff  << " ~ "
@@ -450,7 +455,7 @@ bool  WaypointNavigation::update(base::commands::Motion2D& mc){
                 {
                    setNavigationState(DRIVING);
                    break;
-               	} 
+               	}
             }
             // Try the previous segment
             if(currentSegment > 1){
@@ -533,7 +538,7 @@ const base::Waypoint* WaypointNavigation::getLookaheadPoint(){
 bool WaypointNavigation::configure(double minR,	double tv, double rv,
     double cr, double lad, bool backwards)
     {
-        std::cout << 
+        std::cout <<
         "------------------------------------" << std::endl <<
         "Received Path Tracker config values:" << std::endl <<
         "Min. turn radius:\t"   << minR << " m."  << std::endl <<
@@ -634,12 +639,12 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
         	}
         	currentSegment = segmentNumber;
         }
-    
+
         void WaypointNavigation::initilalizeCurrentSegment(){
-		/* For each segment (except the zeroth (trivial) one): 
+		/* For each segment (except the zeroth (trivial) one):
 		*	a) calculate the hypothetical progress on the segment
-		*  	b) store the maximum index where the robot was in corridor bounds 
-		*  Set the segment to the max index found.	
+		*  	b) store the maximum index where the robot was in corridor bounds
+		*  Set the segment to the max index found.
 		*/
         	size_t maxIndex = 0;
         	double progress, distAlong, distPerpend;
@@ -650,7 +655,7 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
             		maxIndex = i;
             	}
             	if (WAYPOINT_NAVIGATION_DEBUG){
-            	std::cout << "Segment: " << i << ", progress: " << progress << 
+            	std::cout << "Segment: " << i << ", progress: " << progress <<
         			", dist from nominal " << distPerpend << std::endl;
         		}
         	}
@@ -664,12 +669,12 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
         	return  fabs(distAlong)		< corridor &&
                     fabs(distPerpend)	< corridor;
         }
-        
+
         inline void WaypointNavigation::wrapAngle(double& angle){
             if ( angle > M_PI){
                 angle -= 2*M_PI;
             } else if (angle < -M_PI){
-                angle += 2*M_PI; 
+                angle += 2*M_PI;
             }
         }
 
@@ -686,7 +691,7 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
 				alignment_P = P;
 	        	alignment_D = D;
 	        	alignment_saturation = saturation;
-	        	std::cout << "WaypointNavigation::configurePD: P=" << alignment_P 
+	        	std::cout << "WaypointNavigation::configurePD: P=" << alignment_P
 	        		<< ", D=" << alignment_D << ", sat=+-" << alignment_saturation << std::endl;
 	        	return true;
         	} else {
@@ -702,9 +707,9 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
         	} else {
         		return false;
         	}
-        	
+
         }
-    
+
 
 
 }
