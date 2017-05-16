@@ -34,7 +34,8 @@ WaypointNavigation::WaypointNavigation()
 
     // Ackermann turn parameters
     minTurnRadius    = 0.6; // (in meters)
-    maxDisplacementAckermannTurn = 0.25; // (meters from straight line to the next point)
+//    maxDisplacementAckermannTurn = 0.25; // (meters from straight line to the next point)
+    maxDisplacementAckermannTurn = 0.5; // (meters from straight line to the next point)
 
     // Alignment parameters
     alignment_deadband   = 5.0 / 180.0 * M_PI;
