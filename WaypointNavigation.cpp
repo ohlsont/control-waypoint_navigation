@@ -713,6 +713,9 @@ bool WaypointNavigation::configure(double minR,	double tv, double rv,
 
         }
 
-
+    int WaypointNavigation::getCurrentSegment()
+    {
+	return currentSegment;
+    }
 
 }

@@ -92,6 +92,7 @@ class WaypointNavigation
 			  double& progress, double& distAlong, double& distPerpend);
     double getLookaheadDistance();
     void setCurrentSegment(int segmentNumber); // TESTING ONLY - TODO Remove
+    int getCurrentSegment();
   private:
 	/*
 	* MEMBER VARIABLES
@@ -130,7 +131,7 @@ class WaypointNavigation
   	std::vector<double> *distanceToNext;
 	  std::vector<base::Waypoint *> trajectory;
   	base::Waypoint lookaheadPoint;
-    size_t currentSegment;
+    int currentSegment;
 
     base::Vector2d w1, w2, l1, l2, xr;
 
